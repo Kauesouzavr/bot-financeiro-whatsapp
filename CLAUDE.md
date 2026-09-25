@@ -12,16 +12,16 @@ Bot de finanças pessoais no WhatsApp. A pessoa manda "gastei 45 no ifood", um �
 
 ## Stack (não trocar sem perguntar)
 
-| Parte | Escolha |
-|---|---|
-| App + API | Next.js (App Router) + TypeScript `strict`, deploy na Vercel (plano Hobby) |
-| Banco | Supabase (Postgres), projeto próprio, separado de outros projetos |
-| WhatsApp | WhatsApp Cloud API oficial da Meta, com o número de teste |
-| Áudio → texto | Groq, modelo Whisper |
-| IA de reserva (texto) | Groq, LLM com saída JSON |
-| Foto de comprovante | Gemini via `@google/genai` |
-| Validação | zod |
-| Testes e CI | Vitest + GitHub Actions (lint, typecheck e testes) |
+| Parte                 | Escolha                                                                    |
+| --------------------- | -------------------------------------------------------------------------- |
+| App + API             | Next.js (App Router) + TypeScript `strict`, deploy na Vercel (plano Hobby) |
+| Banco                 | Supabase (Postgres), projeto próprio, separado de outros projetos          |
+| WhatsApp              | WhatsApp Cloud API oficial da Meta, com o número de teste                  |
+| Áudio → texto         | Groq, modelo Whisper                                                       |
+| IA de reserva (texto) | Groq, LLM com saída JSON                                                   |
+| Foto de comprovante   | Gemini via `@google/genai`                                                 |
+| Validação             | zod                                                                        |
+| Testes e CI           | Vitest + GitHub Actions (lint, typecheck e testes)                         |
 
 Nomes de modelos de IA e a versão da Graph API mudam com frequência. Eles ficam em variáveis de ambiente, nunca fixos no código. Antes de usar um SDK, confira a documentação atual.
 
@@ -152,27 +152,27 @@ GEMINI_MODEL=
 
 **Fase 1: Fundação**
 Next.js + TS strict, ESLint + Prettier, Vitest, estrutura de pastas, cliente Supabase, migrations do modelo de dados (com RLS), `.env.example`, CI no GitHub Actions e README inicial.
-*Pronto quando:* `npm test` passa, o CI fica verde e as tabelas existem no Supabase.
+_Pronto quando:_ `npm test` passa, o CI fica verde e as tabelas existem no Supabase.
 
 **Fase 2: Núcleo + simulador**
 Parser, categorias, saldo e respostas. Página `/simulador` (só local por enquanto) conversando com o núcleo com um usuário de teste.
-*Pronto quando:* todos os exemplos das regras de negócio passam nos testes e funcionam no simulador.
+_Pronto quando:_ todos os exemplos das regras de negócio passam nos testes e funcionam no simulador.
 
 **Fase 3: WhatsApp**
 Webhook completo, lista de números autorizados, envio de texto, idempotência, cota e modo silencioso. Deploy na Vercel com as variáveis de ambiente configuradas lá. No painel da Meta: Callback URL `https://<projeto>.vercel.app/api/webhook/whatsapp`, o verify token e a assinatura do campo `messages`.
-*Pronto quando:* "gastei 45 no ifood" mandado pelo WhatsApp grava e responde com o saldo, e um número fora da lista é ignorado.
+_Pronto quando:_ "gastei 45 no ifood" mandado pelo WhatsApp grava e responde com o saldo, e um número fora da lista é ignorado.
 
 **Fase 4: IA de reserva e correções**
 Groq quando o parser falha, `muda pra X`, `apaga o último` e aprendizado de categoria por usuário.
-*Pronto quando:* frases fora do padrão são entendidas e uma correção vale para as próximas mensagens.
+_Pronto quando:_ frases fora do padrão são entendidas e uma correção vale para as próximas mensagens.
 
 **Fase 5: Áudio**
 Download da mídia pela Graph API, transcrição no Whisper e o mesmo fluxo do texto.
-*Pronto quando:* um áudio dizendo "gastei trinta reais no mercado" vira transação.
+_Pronto quando:_ um áudio dizendo "gastei trinta reais no mercado" vira transação.
 
 **Fase 6: Foto do comprovante**
 Gemini com saída JSON, botões Salvar/Cancelar e pendência com validade.
-*Pronto quando:* a foto de um comprovante PIX real vira transação só depois do "Salvar".
+_Pronto quando:_ a foto de um comprovante PIX real vira transação só depois do "Salvar".
 
 ## Depois do MVP (não fazer ainda)
 
