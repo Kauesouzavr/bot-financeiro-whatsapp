@@ -71,6 +71,7 @@ As migrations ficam em `supabase/migrations/`, numeradas na ordem em que devem s
 4. `0004_create_pending_actions.sql`
 5. `0005_create_processed_messages.sql`
 6. `0006_create_monthly_usage.sql`
+7. `0007_seed_simulator_user.sql` — cria o usuário fixo usado pelo `/simulador`
 
 Todas as tabelas têm **Row Level Security (RLS)** ligado e nenhuma policy: só o backend, usando a chave secreta (`SUPABASE_SECRET_KEY`, que ignora RLS), acessa os dados. Isso é propositalmente redundante — mesmo que a chave pública vaze ou seja usada por engano em algum lugar, ninguém lê ou escreve nas tabelas.
 
@@ -78,8 +79,23 @@ Todas as tabelas têm **Row Level Security (RLS)** ligado e nenhuma policy: só 
 
 Ver `.env.example` para a lista completa. Nenhum segredo vai pro Git — `.env.local` está no `.gitignore`.
 
+## O núcleo (`src/core`)
+
+Regra de negócio pura, sem I/O, 100% testável:
+
+- **`parser`** — reconhece frases como "gastei 45 no ifood" ou "recebi 1500 salário" por regras (sem IA ainda) e devolve uma ou mais transações estruturadas, sempre em centavos.
+- **`categories`** — dicionário de palavra-chave → categoria (ex.: "ifood" → Delivery).
+- **`date/sao-paulo`** — resolve "hoje", "ontem" e "dia N" no fuso de São Paulo, usando só `Intl` (sem biblioteca de datas).
+- **`balance`** — soma entradas/saídas de um conjunto de transações e calcula o saldo.
+- **`replies`** — formata as mensagens de resposta.
+- **`handle-message.ts`** — o ponto de entrada: liga parser → categoria → grava no Supabase → recalcula saldo → formata resposta. É o mesmo código que o simulador e (na Fase 3) o WhatsApp vão chamar.
+
+## Simulador
+
+`/simulador` é um chat local que conversa com o núcleo de verdade (grava no Supabase de verdade), usando um usuário de teste fixo — não o seu número real de WhatsApp.
+
 ## Estado atual
 
-**Fase 1 (Fundação) concluída:** projeto Next.js + TS strict, ESLint + Prettier, Vitest, estrutura de pastas do núcleo, cliente Supabase server-only, migrations com RLS, CI no GitHub Actions (lint, typecheck, testes — sem depender de nenhuma chave) e este README.
+**Fase 1 (Fundação)** e **Fase 2 (Núcleo + simulador)** concluídas: parser, categorias, saldo, respostas e o `/simulador` funcionando de ponta a ponta. Testes automatizados cobrem todos os exemplos de mensagem do escopo do projeto.
 
-Próxima fase: núcleo (parser, categorias, saldo, respostas) + simulador web local.
+Próxima fase: integração com o WhatsApp (webhook, assinatura, cota, modo silencioso).
