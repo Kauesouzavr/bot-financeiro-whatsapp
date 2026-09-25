@@ -88,14 +88,31 @@ Regra de negócio pura, sem I/O, 100% testável:
 - **`date/sao-paulo`** — resolve "hoje", "ontem" e "dia N" no fuso de São Paulo, usando só `Intl` (sem biblioteca de datas).
 - **`balance`** — soma entradas/saídas de um conjunto de transações e calcula o saldo.
 - **`replies`** — formata as mensagens de resposta.
-- **`handle-message.ts`** — o ponto de entrada: liga parser → categoria → grava no Supabase → recalcula saldo → formata resposta. É o mesmo código que o simulador e (na Fase 3) o WhatsApp vão chamar.
+- **`handle-message.ts`** — o ponto de entrada: liga parser → categoria → grava no Supabase → recalcula saldo → formata resposta. É o mesmo código que o simulador e o WhatsApp chamam.
+- **`quota`** — decide se manda a resposta ou entra em modo silencioso, e se deve avisar que está perto do limite mensal.
 
 ## Simulador
 
 `/simulador` é um chat local que conversa com o núcleo de verdade (grava no Supabase de verdade), usando um usuário de teste fixo — não o seu número real de WhatsApp.
 
+## WhatsApp (`src/channels/whatsapp` + `app/api/webhook/whatsapp`)
+
+- **`verify-signature`** — valida o `X-Hub-Signature-256` (HMAC SHA-256 com o App Secret) sobre o corpo cru da requisição.
+- **`phone`** — o `wa_id` pode chegar com ou sem o nono dígito; gera as duas formas pra comparar com a tabela `users`, e mascara o telefone pra log seguro.
+- **`parse-webhook`** — extrai as mensagens do payload da Meta (ignora eventos de status como "entregue"/"lido") e traduz pro formato normalizado do núcleo.
+- **`send-message`** — envia texto pela Graph API. Não existe função de template (proibido: geraria cobrança e o bot só responde dentro da janela de 24h de uma mensagem recebida).
+- **`route.ts`** — `GET` faz o handshake de verificação do webhook; `POST` valida a assinatura, responde `200` na hora e processa a mensagem depois com `after()` (idempotência por `wa_message_id` → número autorizado e ativo → núcleo → cota → envia).
+
+## Deploy (Vercel) e configuração na Meta
+
+1. Conectar o repositório na Vercel (plano Hobby) e configurar lá as mesmas variáveis do `.env.local` (nunca copiar o `.env.local` em si, só os valores).
+2. No painel da Meta, em **WhatsApp → Configuração da API → Webhook**:
+   - Callback URL: `https://<seu-projeto>.vercel.app/api/webhook/whatsapp`
+   - Verify token: o mesmo valor de `WHATSAPP_VERIFY_TOKEN`
+   - Assinar o campo **`messages`**
+
 ## Estado atual
 
-**Fase 1 (Fundação)** e **Fase 2 (Núcleo + simulador)** concluídas: parser, categorias, saldo, respostas e o `/simulador` funcionando de ponta a ponta. Testes automatizados cobrem todos os exemplos de mensagem do escopo do projeto.
+**Fases 1 a 3 concluídas:** fundação, núcleo (parser/categorias/saldo/respostas), simulador e a integração com o WhatsApp (webhook, assinatura, números autorizados, idempotência, cota e modo silencioso). Testes automatizados cobrem todos os exemplos de mensagem do escopo do projeto, a verificação de assinatura e a lógica de cota.
 
-Próxima fase: integração com o WhatsApp (webhook, assinatura, cota, modo silencioso).
+Próxima fase: IA de reserva (Groq) para mensagens fora do padrão, e correções (`muda pra X`, `apaga o último`).
