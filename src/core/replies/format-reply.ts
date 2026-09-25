@@ -34,3 +34,7 @@ export function formatBalance(
 export function formatUnrecognized(): string {
   return 'Não entendi essa mensagem 🤔\nTenta assim: "gastei 45 no ifood" ou "recebi 1500 salário".';
 }
+
+export function formatQuotaWarning(): string {
+  return "⚠️ Quase no limite de respostas grátis do mês. Continuo registrando tudo, mas posso ficar em modo silencioso em breve.";
+}
