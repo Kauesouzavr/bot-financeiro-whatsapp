@@ -37,9 +37,12 @@ O núcleo (`src/core`) não sabe de onde a mensagem veio: é regra de negócio p
 src/
   core/                 # regras de negócio puras, sem I/O, 100% testável
     parser/             # texto → transações
+    commands/           # "muda pra X" e "apaga o último"
     categories/         # dicionário padrão + aprendizado por usuário
+    ai/                 # schema (zod) e mapeamento da saída da IA de reserva
     balance/            # saldo do mês
     replies/            # formatação das respostas
+    message-handler.ts  # o fluxo completo, com as dependências injetadas
   services/             # supabase, groq, gemini (I/O)
   channels/
     whatsapp/           # assinatura, leitura do webhook, envio, download de mídia
@@ -84,6 +87,7 @@ As migrations ficam em `supabase/migrations/`, numeradas na ordem em que devem s
 5. `0005_create_processed_messages.sql`
 6. `0006_create_monthly_usage.sql`
 7. `0007_seed_simulator_user.sql`: cria o usuário fixo usado pelo `/simulador`
+8. `0008_add_transactions_seq.sql`: coluna `seq` (numeração automática) em `transactions`. "gastei 45 no ifood e 12 no uber" grava duas linhas na mesma inserção, com o mesmo `created_at`; o `seq` desempata e define sem ambiguidade qual é a última transação (alvo de `muda pra X` e `apaga o último`)
 
 Todas as tabelas têm **Row Level Security (RLS)** ligado e nenhuma policy: só o backend, usando a chave secreta (`SUPABASE_SECRET_KEY`, que ignora RLS), acessa os dados. Isso é propositalmente redundante: mesmo que a chave pública vaze ou seja usada por engano em algum lugar, ninguém lê ou escreve nas tabelas.
 
@@ -91,16 +95,21 @@ Todas as tabelas têm **Row Level Security (RLS)** ligado e nenhuma policy: só 
 
 Ver `.env.example` para a lista completa. Nenhum segredo vai pro Git, e o `.env.local` está no `.gitignore`.
 
+Nomes de modelos de IA mudam com frequência, por isso ficam em variável de ambiente e não no código. Para a IA de reserva, `GROQ_LLM_MODEL=openai/gpt-oss-20b` funciona no plano grátis do Groq (modelo de produção com saída JSON estrita). Sem `GROQ_API_KEY` ou `GROQ_LLM_MODEL`, a IA de reserva simplesmente fica desligada e o bot responde "não entendi".
+
 ## O núcleo (`src/core`)
 
 Regra de negócio pura, sem I/O, 100% testável:
 
-- **`parser`**: reconhece frases como "gastei 45 no ifood" ou "recebi 1500 salário" por regras (sem IA ainda) e devolve uma ou mais transações estruturadas, sempre em centavos.
-- **`categories`**: dicionário de palavra-chave → categoria (ex.: "ifood" → Delivery).
+- **`parser`**: reconhece frases como "gastei 45 no ifood" ou "recebi 1500 salário" por regras e devolve uma ou mais transações estruturadas, sempre em centavos inteiros.
+- **`commands`**: reconhece as correções `muda pra lazer` e `apaga o último` (e variações). Sempre agem sobre a última transação do usuário.
+- **`categories`**: dicionário de palavra-chave → categoria (ex.: "ifood" → Delivery). O que o usuário já corrigiu (termo → categoria, tabela `learned_categories`) tem prioridade sobre o dicionário.
+- **`ai`**: valida com zod o JSON da IA de reserva e o transforma nas mesmas transações do parser. A IA só diz _o que_ foi gasto e _quando_ ("ontem", "dia 10"): o valor vira centavos pelo nosso conversor (sem float) e a data é calculada por nós em `America/Sao_Paulo`.
 - **`date/sao-paulo`**: resolve "hoje", "ontem" e "dia N" no fuso de São Paulo, usando só `Intl` (sem biblioteca de datas).
 - **`balance`**: soma entradas/saídas de um conjunto de transações e calcula o saldo.
 - **`replies`**: formata as mensagens de resposta.
-- **`handle-message.ts`**: o ponto de entrada: liga parser → categoria → grava no Supabase → recalcula saldo → formata resposta. É o mesmo código que o simulador e o WhatsApp chamam.
+- **`message-handler.ts`**: o fluxo completo, sem importar banco nem rede: recebe as dependências (`CoreDeps`) por injeção, então os testes usam um banco em memória. Ordem de interpretação: **comando de correção → parser por regras → IA de reserva (Groq) → pedir pra reformular**. A IA só entra quando o parser não entende; se ela falhar (sem chave, limite do plano grátis, timeout, JSON inválido), o bot cai no "não entendi" e nada é gravado.
+- **`handle-message.ts`**: liga o `message-handler` aos serviços reais (Supabase e Groq). É o mesmo código que o simulador e o WhatsApp chamam.
 - **`quota`**: decide se manda a resposta ou entra em modo silencioso, e se deve avisar que está perto do limite mensal.
 
 ## Simulador
@@ -127,9 +136,9 @@ Como ele grava no banco de verdade e não tem login, **só funciona fora de prod
 
 ## Estado atual
 
-**Fases 1 a 3 concluídas:** fundação, núcleo (parser/categorias/saldo/respostas), simulador e a integração com o WhatsApp (webhook, assinatura, números autorizados, idempotência, cota e modo silencioso). Testes automatizados cobrem todos os exemplos de mensagem do escopo do projeto, a verificação de assinatura e a lógica de cota.
+**Fases 1 a 4 implementadas:** fundação, núcleo (parser/categorias/saldo/respostas), simulador, a integração com o WhatsApp (webhook, assinatura, números autorizados, idempotência, cota e modo silencioso), a IA de reserva (Groq) e as correções com aprendizado de categoria por usuário. Falta apenas o teste ponta a ponta com o WhatsApp real (Fase 3). Testes automatizados cobrem os exemplos de mensagem do escopo do projeto, os comandos, as categorias aprendidas, a IA de reserva (com `fetch` simulado), a verificação de assinatura e a lógica de cota.
 
-Próxima fase: IA de reserva (Groq) para mensagens fora do padrão, e correções (`muda pra X`, `apaga o último`).
+Próxima fase: áudio (Whisper).
 
 ---
 
