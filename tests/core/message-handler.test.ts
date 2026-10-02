@@ -1,41 +1,25 @@
 import { describe, expect, it } from "vitest";
-import { createMessageHandler, type CoreDeps } from "@/core/message-handler";
-import type { CoreInput, ParsedTransaction } from "@/core/types";
-
-// Terça, 2026-09-15 (meio-dia em SP). Fixa pra "setembro" e "ontem" não dependerem do dia do teste.
-const NOW = new Date("2026-09-15T15:00:00Z");
-
-function createFakeDeps(learned: Record<string, string> = {}) {
-  const stored: ParsedTransaction[] = [];
-
-  const deps: CoreDeps = {
-    getLearnedCategories: async () => learned,
-    insertTransactions: async (_userId, transactions) => {
-      stored.push(...transactions);
-    },
-    getMonthTransactions: async () =>
-      stored.map((transaction) => ({
-        type: transaction.type,
-        amountCents: transaction.amountCents,
-      })),
-    now: () => NOW,
-  };
-
-  return { deps, stored };
-}
+import { createMessageHandler } from "@/core/message-handler";
+import type { CoreInput } from "@/core/types";
+import { createFakeStore } from "../helpers/fake-deps";
 
 function textInput(content: string): CoreInput {
   return { userId: "user-1", kind: "text", content, source: "simulator" };
 }
 
-describe("createMessageHandler", () => {
+function setup(initialLearned: Record<string, string> = {}) {
+  const store = createFakeStore(initialLearned);
+  const handle = createMessageHandler(store.deps);
+  return { ...store, handle };
+}
+
+describe("createMessageHandler: registro", () => {
   it("registra a transação e responde com a confirmação e o saldo do mês", async () => {
-    const { deps, stored } = createFakeDeps();
-    const handle = createMessageHandler(deps);
+    const { handle, transactions } = setup();
 
     const replies = await handle(textInput("gastei 45 no ifood"));
 
-    expect(stored).toHaveLength(1);
+    expect(transactions).toHaveLength(1);
     expect(replies).toHaveLength(1);
     expect(replies[0].text).toBe(
       "✅ R$ 45,00 em Delivery (ifood)\nSetembro: entrou R$ 0,00 · saiu R$ 45,00 · saldo -R$ 45,00",
@@ -43,43 +27,144 @@ describe("createMessageHandler", () => {
   });
 
   it("junta várias transações da mesma mensagem em uma resposta só", async () => {
-    const { deps, stored } = createFakeDeps();
-    const handle = createMessageHandler(deps);
+    const { handle, transactions } = setup();
 
     const replies = await handle(textInput("gastei 45 no ifood e 12 no uber"));
 
-    expect(stored).toHaveLength(2);
+    expect(transactions).toHaveLength(2);
     expect(replies).toHaveLength(1);
     expect(replies[0].text.split("\n")).toHaveLength(3);
   });
 
   it("usa a categoria que o usuário já ensinou", async () => {
-    const { deps, stored } = createFakeDeps({ ifood: "Lazer" });
-    const handle = createMessageHandler(deps);
+    const { handle, transactions } = setup({ ifood: "Lazer" });
 
     const replies = await handle(textInput("gastei 45 no ifood"));
 
-    expect(stored[0].category).toBe("Lazer");
+    expect(transactions[0].category).toBe("Lazer");
     expect(replies[0].text).toContain("✅ R$ 45,00 em Lazer (ifood)");
   });
 
   it("pede pra reformular, sem gravar nada, quando não entende", async () => {
-    const { deps, stored } = createFakeDeps();
-    const handle = createMessageHandler(deps);
+    const { handle, transactions } = setup();
 
     const replies = await handle(textInput("bom dia"));
 
-    expect(stored).toHaveLength(0);
+    expect(transactions).toHaveLength(0);
     expect(replies[0].text).toContain("Não entendi");
   });
 
   it("avisa que só entende texto quando chega outro tipo de mensagem", async () => {
-    const { deps, stored } = createFakeDeps();
-    const handle = createMessageHandler(deps);
+    const { handle, transactions } = setup();
 
     const replies = await handle({ userId: "user-1", kind: "audio", content: "x", source: "text" });
 
-    expect(stored).toHaveLength(0);
+    expect(transactions).toHaveLength(0);
     expect(replies[0].text).toContain("só entendo mensagens de texto");
+  });
+});
+
+describe("createMessageHandler: muda pra X", () => {
+  it("troca a categoria da última transação e avisa o que vai lembrar", async () => {
+    const { handle, transactions } = setup();
+    await handle(textInput("gastei 45 no ifood"));
+
+    const replies = await handle(textInput("muda pra lazer"));
+
+    expect(transactions[0].category).toBe("Lazer");
+    expect(replies).toHaveLength(1);
+    expect(replies[0].text).toBe(
+      '✏️ Pronto! R$ 45,00 (ifood) agora é Lazer.\nDa próxima vez, "ifood" já entra como Lazer.',
+    );
+  });
+
+  it("a correção vale pras próximas mensagens do mesmo termo", async () => {
+    const { handle, transactions, learned } = setup();
+    await handle(textInput("gastei 45 no ifood"));
+    await handle(textInput("muda pra lazer"));
+
+    await handle(textInput("gastei 20 no ifood"));
+
+    expect(learned).toEqual({ ifood: "Lazer" });
+    expect(transactions[1].category).toBe("Lazer");
+  });
+
+  it("mexe só na última transação, mesmo quando a mensagem tinha várias", async () => {
+    const { handle, transactions } = setup();
+    await handle(textInput("gastei 45 no ifood e 12 no uber"));
+
+    await handle(textInput("muda pra lazer"));
+
+    expect(transactions.map((transaction) => transaction.category)).toEqual(["Delivery", "Lazer"]);
+  });
+
+  it("corrige sem aprender quando a transação não tem descrição", async () => {
+    const { handle, transactions, learned } = setup();
+    await handle(textInput("gastei 45"));
+
+    const replies = await handle(textInput("muda pra lazer"));
+
+    expect(transactions[0].category).toBe("Lazer");
+    expect(learned).toEqual({});
+    expect(replies[0].text).toBe("✏️ Pronto! R$ 45,00 agora é Lazer.");
+  });
+
+  it("lista as categorias quando não conhece a pedida, sem alterar nada", async () => {
+    const { handle, transactions, learned } = setup();
+    await handle(textInput("gastei 45 no ifood"));
+
+    const replies = await handle(textInput("muda pra viagens"));
+
+    expect(transactions[0].category).toBe("Delivery");
+    expect(learned).toEqual({});
+    expect(replies[0].text).toContain('Não conheço a categoria "viagens"');
+    expect(replies[0].text).toContain("Alimentação, Delivery");
+  });
+
+  it("não aceita categoria de saída numa entrada", async () => {
+    const { handle, transactions } = setup();
+    await handle(textInput("recebi 1500 salário"));
+
+    const replies = await handle(textInput("muda pra lazer"));
+
+    expect(transactions[0].category).toBe("Salário");
+    expect(replies[0].text).toContain("Pra entradas eu tenho: Salário, Freela");
+  });
+
+  it("avisa quando ainda não há nenhum registro", async () => {
+    const { handle } = setup();
+
+    const replies = await handle(textInput("muda pra lazer"));
+
+    expect(replies[0].text).toContain("ainda não tem nenhum registro");
+  });
+});
+
+describe("createMessageHandler: apaga o último", () => {
+  it("apaga só a última transação e mostra o saldo atualizado", async () => {
+    const { handle, transactions } = setup();
+    await handle(textInput("recebi 1500 salário"));
+    await handle(textInput("gastei 45 no ifood"));
+
+    const replies = await handle(textInput("apaga o último"));
+
+    expect(transactions).toHaveLength(1);
+    expect(transactions[0].category).toBe("Salário");
+    expect(replies[0].text).toBe(
+      "🗑️ Apaguei: R$ 45,00 em Delivery (ifood)\nSetembro: entrou R$ 1.500,00 · saiu R$ 0,00 · saldo R$ 1.500,00",
+    );
+  });
+
+  it("apagar de novo apaga a anterior; depois disso não sobra nada", async () => {
+    const { handle, transactions } = setup();
+    await handle(textInput("gastei 45 no ifood"));
+    await handle(textInput("gastei 12 no uber"));
+
+    await handle(textInput("apaga o último"));
+    await handle(textInput("apaga o último"));
+    const replies = await handle(textInput("apaga o último"));
+
+    expect(transactions).toHaveLength(0);
+    expect(replies[0].text).toContain("ainda não tem nenhum registro");
   });
 });

@@ -1,5 +1,6 @@
 import type { BalanceSummary } from "../balance/calculate-balance";
-import type { ParsedTransaction } from "../types";
+import { categoriesFor } from "../categories";
+import type { ParsedTransaction, TransactionType } from "../types";
 
 export function formatCurrency(cents: number): string {
   const value = cents / 100;
@@ -8,10 +9,43 @@ export function formatCurrency(cents: number): string {
     .replace(/ /g, " ");
 }
 
-export function formatConfirmation(transaction: ParsedTransaction): string {
+// "R$ 45,00 em Delivery (ifood)": a descrição da transação, reaproveitada nas respostas.
+function describeTransaction(transaction: ParsedTransaction): string {
   const amount = formatCurrency(transaction.amountCents);
   const description = transaction.description ? ` (${transaction.description})` : "";
-  return `✅ ${amount} em ${transaction.category}${description}`;
+  return `${amount} em ${transaction.category}${description}`;
+}
+
+export function formatConfirmation(transaction: ParsedTransaction): string {
+  return `✅ ${describeTransaction(transaction)}`;
+}
+
+export function formatDeleted(transaction: ParsedTransaction): string {
+  return `🗑️ Apaguei: ${describeTransaction(transaction)}`;
+}
+
+// `transaction` já vem com a categoria nova. `learnedTerm` é o termo que o bot vai lembrar (se houver).
+export function formatCategoryChanged(
+  transaction: ParsedTransaction,
+  learnedTerm: string | null,
+): string {
+  const amount = formatCurrency(transaction.amountCents);
+  const description = transaction.description ? ` (${transaction.description})` : "";
+  const lines = [`✏️ Pronto! ${amount}${description} agora é ${transaction.category}.`];
+  if (learnedTerm) {
+    lines.push(`Da próxima vez, "${learnedTerm}" já entra como ${transaction.category}.`);
+  }
+  return lines.join("\n");
+}
+
+export function formatNoTransactions(): string {
+  return 'Você ainda não tem nenhum registro por aqui. Manda algo como "gastei 45 no ifood" pra começar.';
+}
+
+export function formatUnknownCategory(rawCategory: string, type: TransactionType): string {
+  const list = categoriesFor(type).join(", ");
+  const kind = type === "income" ? "entradas" : "gastos";
+  return `Não conheço a categoria "${rawCategory}". Pra ${kind} eu tenho: ${list}.`;
 }
 
 function capitalize(word: string): string {

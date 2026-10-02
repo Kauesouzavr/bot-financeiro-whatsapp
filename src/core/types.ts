@@ -9,6 +9,11 @@ export interface ParsedTransaction {
   occurredOn: string; // "YYYY-MM-DD"
 }
 
+// Transação já gravada no banco (a mais recente do usuário é o alvo das correções).
+export interface StoredTransaction extends ParsedTransaction {
+  id: string;
+}
+
 export interface CoreInput {
   userId: string;
   kind: "text" | "audio" | "image" | "button";
