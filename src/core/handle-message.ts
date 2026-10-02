@@ -1,3 +1,4 @@
+import { getLearnedCategories } from "@/services/supabase/learned-categories";
 import { getMonthTransactions, insertTransactions } from "@/services/supabase/transactions";
 import { createMessageHandler } from "./message-handler";
 
@@ -6,5 +7,6 @@ import { createMessageHandler } from "./message-handler";
 export const handleMessage = createMessageHandler({
   insertTransactions,
   getMonthTransactions,
+  getLearnedCategories,
   now: () => new Date(),
 });

@@ -1,4 +1,4 @@
-import { categorize } from "../categories";
+import { categorize, type LearnedCategories } from "../categories";
 import { resolveOccurredOn, type DateModifier } from "../date/sao-paulo";
 import type { ParsedTransaction, TransactionType } from "../types";
 
@@ -42,6 +42,7 @@ function parseClause(
   rawClause: string,
   inheritedType: TransactionType,
   now: Date,
+  learned: LearnedCategories,
 ): ParsedTransaction | null {
   let text = ` ${rawClause.toLowerCase().trim()} `;
   let type = inheritedType;
@@ -83,13 +84,17 @@ function parseClause(
   text = text.replace(CONNECTOR_WORDS, " ");
   const description = text.replace(/\s+/g, " ").trim() || null;
 
-  const category = categorize(description ?? "", type);
+  const category = categorize(description ?? "", type, learned);
   const occurredOn = resolveOccurredOn(dateModifier, now);
 
   return { type, amountCents, description, category, occurredOn };
 }
 
-export function parseMessage(message: string, now: Date = new Date()): ParsedTransaction[] | null {
+export function parseMessage(
+  message: string,
+  now: Date = new Date(),
+  learned: LearnedCategories = {},
+): ParsedTransaction[] | null {
   const rawClauses = message.split(/\s+e\s+/i);
   const clauses =
     rawClauses.length > 1 && rawClauses.every((clause) => /\d/.test(clause))
@@ -100,7 +105,7 @@ export function parseMessage(message: string, now: Date = new Date()): ParsedTra
   let inheritedType: TransactionType = "expense";
 
   for (const clause of clauses) {
-    const parsed = parseClause(clause, inheritedType, now);
+    const parsed = parseClause(clause, inheritedType, now, learned);
     if (!parsed) return null;
     inheritedType = parsed.type;
     results.push(parsed);

@@ -1,5 +1,6 @@
 import type { BalanceTransaction } from "./balance/calculate-balance";
 import { calculateBalance } from "./balance/calculate-balance";
+import type { LearnedCategories } from "./categories";
 import { getSaoPauloParts } from "./date/sao-paulo";
 import { parseMessage } from "./parser/parse-message";
 import { formatBalance, formatConfirmation, formatUnrecognized } from "./replies/format-reply";
@@ -14,6 +15,7 @@ export interface CoreDeps {
     source: TransactionSource,
   ): Promise<void>;
   getMonthTransactions(userId: string, year: number, month: number): Promise<BalanceTransaction[]>;
+  getLearnedCategories(userId: string): Promise<LearnedCategories>;
   now(): Date;
 }
 
@@ -24,7 +26,8 @@ export function createMessageHandler(deps: CoreDeps) {
     }
 
     const now = deps.now();
-    const parsed = parseMessage(input.content, now);
+    const learned = await deps.getLearnedCategories(input.userId);
+    const parsed = parseMessage(input.content, now, learned);
     if (!parsed) {
       return [{ type: "text", text: formatUnrecognized() }];
     }

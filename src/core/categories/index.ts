@@ -99,13 +99,61 @@ const INCOME_KEYWORDS: Record<string, IncomeCategory> = {
   pix: "Pix recebido",
 };
 
-export function categorize(description: string, type: TransactionType): string {
-  const normalized = description.toLowerCase();
-  const keywords = type === "income" ? INCOME_KEYWORDS : EXPENSE_KEYWORDS;
+export const FALLBACK_CATEGORY: Record<TransactionType, string> = {
+  expense: "Outros",
+  income: "Outras entradas",
+};
 
-  for (const [keyword, category] of Object.entries(keywords)) {
-    if (new RegExp(`\\b${keyword}\\b`).test(normalized)) return category;
+// Termo → categoria que o próprio usuário já corrigiu (tabela learned_categories).
+export type LearnedCategories = Readonly<Record<string, string>>;
+
+export function categoriesFor(type: TransactionType): readonly string[] {
+  return type === "income" ? INCOME_CATEGORIES : EXPENSE_CATEGORIES;
+}
+
+function stripAccents(text: string): string {
+  return text.normalize("NFD").replace(/[̀-ͯ]/g, "");
+}
+
+// Acha a categoria oficial a partir do que o usuário digitou ("lazer", "alimentacao", "PIX recebido").
+export function findCategory(raw: string, type: TransactionType): string | null {
+  const normalize = (text: string) => stripAccents(text).toLowerCase().replace(/\s+/g, " ").trim();
+  const wanted = normalize(raw);
+  return categoriesFor(type).find((category) => normalize(category) === wanted) ?? null;
+}
+
+function escapeRegExp(text: string): string {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+// O "\b" do JS só entende letras sem acento: com "água" ou "ônibus" a borda da palavra falha.
+// Por isso a borda é montada com lookaround de letra/número Unicode.
+function containsTerm(text: string, term: string): boolean {
+  const pattern = `(?<![\\p{L}\\p{N}])${escapeRegExp(term)}(?![\\p{L}\\p{N}])`;
+  return new RegExp(pattern, "u").test(text);
+}
+
+export function categorize(
+  description: string,
+  type: TransactionType,
+  learned: LearnedCategories = {},
+): string {
+  const normalized = description.toLowerCase();
+
+  // O que o usuário ensinou ganha do dicionário padrão. Termo mais longo primeiro,
+  // pra "ifood lanche" ter prioridade sobre "ifood". Categoria de outro tipo é ignorada.
+  const validCategories = categoriesFor(type);
+  const learnedTerms = Object.keys(learned).sort((a, b) => b.length - a.length);
+  for (const term of learnedTerms) {
+    if (validCategories.includes(learned[term]) && containsTerm(normalized, term)) {
+      return learned[term];
+    }
   }
 
-  return type === "income" ? "Outras entradas" : "Outros";
+  const keywords = type === "income" ? INCOME_KEYWORDS : EXPENSE_KEYWORDS;
+  for (const [keyword, category] of Object.entries(keywords)) {
+    if (containsTerm(normalized, keyword)) return category;
+  }
+
+  return FALLBACK_CATEGORY[type];
 }

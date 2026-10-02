@@ -5,10 +5,11 @@ import type { CoreInput, ParsedTransaction } from "@/core/types";
 // Terça, 2026-09-15 (meio-dia em SP). Fixa pra "setembro" e "ontem" não dependerem do dia do teste.
 const NOW = new Date("2026-09-15T15:00:00Z");
 
-function createFakeDeps() {
+function createFakeDeps(learned: Record<string, string> = {}) {
   const stored: ParsedTransaction[] = [];
 
   const deps: CoreDeps = {
+    getLearnedCategories: async () => learned,
     insertTransactions: async (_userId, transactions) => {
       stored.push(...transactions);
     },
@@ -50,6 +51,16 @@ describe("createMessageHandler", () => {
     expect(stored).toHaveLength(2);
     expect(replies).toHaveLength(1);
     expect(replies[0].text.split("\n")).toHaveLength(3);
+  });
+
+  it("usa a categoria que o usuário já ensinou", async () => {
+    const { deps, stored } = createFakeDeps({ ifood: "Lazer" });
+    const handle = createMessageHandler(deps);
+
+    const replies = await handle(textInput("gastei 45 no ifood"));
+
+    expect(stored[0].category).toBe("Lazer");
+    expect(replies[0].text).toContain("✅ R$ 45,00 em Lazer (ifood)");
   });
 
   it("pede pra reformular, sem gravar nada, quando não entende", async () => {
