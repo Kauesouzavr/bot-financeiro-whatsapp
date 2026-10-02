@@ -1,3 +1,4 @@
+import { extractTransactionsWithGroq } from "@/services/groq/extract-transactions";
 import { getLearnedCategories, saveLearnedCategory } from "@/services/supabase/learned-categories";
 import {
   deleteTransaction,
@@ -18,5 +19,6 @@ export const handleMessage = createMessageHandler({
   deleteTransaction,
   getLearnedCategories,
   saveLearnedCategory,
+  extractWithAi: extractTransactionsWithGroq,
   now: () => new Date(),
 });

@@ -1,3 +1,4 @@
+import { extractionToTransactions, type AiExtraction } from "./ai/extraction";
 import type { BalanceTransaction } from "./balance/calculate-balance";
 import { calculateBalance } from "./balance/calculate-balance";
 import { findCategory, type LearnedCategories } from "./categories";
@@ -35,6 +36,8 @@ export interface CoreDeps {
   deleteTransaction(userId: string, transactionId: string): Promise<void>;
   getLearnedCategories(userId: string): Promise<LearnedCategories>;
   saveLearnedCategory(userId: string, term: string, category: string): Promise<void>;
+  // IA de reserva: devolve null se estiver indisponível ou falhar (nunca deve lançar erro).
+  extractWithAi(message: string): Promise<AiExtraction | null>;
   now(): Date;
 }
 
@@ -84,7 +87,13 @@ export function createMessageHandler(deps: CoreDeps) {
     if (command) return handleCommand(command, input.userId, now);
 
     const learned = await deps.getLearnedCategories(input.userId);
-    const parsed = parseMessage(input.content, now, learned);
+
+    // Ordem: regras primeiro; a IA só entra quando o parser não entendeu.
+    let parsed = parseMessage(input.content, now, learned);
+    if (!parsed) {
+      const extraction = await deps.extractWithAi(input.content);
+      parsed = extraction ? extractionToTransactions(extraction, learned, now) : null;
+    }
     if (!parsed) return textReply(formatUnrecognized());
 
     await deps.insertTransactions(input.userId, parsed, input.source);

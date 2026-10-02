@@ -1,3 +1,4 @@
+import type { AiExtraction } from "@/core/ai/extraction";
 import type { CoreDeps } from "@/core/message-handler";
 import type { StoredTransaction } from "@/core/types";
 
@@ -9,6 +10,9 @@ export function createFakeStore(initialLearned: Record<string, string> = {}) {
   const transactions: StoredTransaction[] = [];
   const learned: Record<string, string> = { ...initialLearned };
   let nextId = 1;
+
+  // IA simulada: o teste define o que ela "responde" (aiResult) e confere se foi chamada (aiCalls).
+  const ai = { result: null as AiExtraction | null, calls: [] as string[] };
 
   const deps: CoreDeps = {
     insertTransactions: async (_userId, newTransactions) => {
@@ -34,8 +38,12 @@ export function createFakeStore(initialLearned: Record<string, string> = {}) {
     saveLearnedCategory: async (_userId, term, category) => {
       learned[term] = category;
     },
+    extractWithAi: async (message) => {
+      ai.calls.push(message);
+      return ai.result;
+    },
     now: () => NOW,
   };
 
-  return { deps, transactions, learned };
+  return { deps, transactions, learned, ai };
 }

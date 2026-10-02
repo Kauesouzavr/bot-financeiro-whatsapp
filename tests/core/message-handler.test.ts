@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { AiExtraction } from "@/core/ai/extraction";
 import { createMessageHandler } from "@/core/message-handler";
 import type { CoreInput } from "@/core/types";
 import { createFakeStore } from "../helpers/fake-deps";
@@ -61,6 +62,74 @@ describe("createMessageHandler: registro", () => {
 
     expect(transactions).toHaveLength(0);
     expect(replies[0].text).toContain("só entendo mensagens de texto");
+  });
+});
+
+describe("createMessageHandler: IA de reserva", () => {
+  const RACAO: AiExtraction = {
+    transactions: [
+      {
+        type: "expense",
+        amount: "89,90",
+        description: "ração do cachorro",
+        date: "today",
+        day_of_month: null,
+        category: "Compras",
+      },
+    ],
+  };
+
+  it("não chama a IA quando o parser por regras entende", async () => {
+    const { handle, ai } = setup();
+
+    await handle(textInput("gastei 45 no ifood"));
+
+    expect(ai.calls).toHaveLength(0);
+  });
+
+  it("não chama a IA para comandos", async () => {
+    const { handle, ai } = setup();
+    await handle(textInput("gastei 45 no ifood"));
+
+    await handle(textInput("muda pra lazer"));
+    await handle(textInput("apaga o último"));
+
+    expect(ai.calls).toHaveLength(0);
+  });
+
+  it("chama a IA quando o parser falha e grava o que ela extraiu", async () => {
+    const { handle, ai, transactions } = setup();
+    ai.result = RACAO;
+
+    const replies = await handle(textInput("comprei ração pro cachorro por oitenta e nove reais"));
+
+    expect(ai.calls).toEqual(["comprei ração pro cachorro por oitenta e nove reais"]);
+    expect(transactions).toHaveLength(1);
+    expect(replies[0].text).toBe(
+      "✅ R$ 89,90 em Compras (ração do cachorro)\nSetembro: entrou R$ 0,00 · saiu R$ 89,90 · saldo -R$ 89,90",
+    );
+  });
+
+  it("aplica as categorias aprendidas também nas transações vindas da IA", async () => {
+    const { handle, ai, transactions } = setup({ "ração do cachorro": "Lazer" });
+    ai.result = RACAO;
+
+    await handle(textInput("comprei ração pro cachorro por oitenta e nove reais"));
+
+    expect(transactions[0].category).toBe("Lazer");
+  });
+
+  it("pede pra reformular, sem gravar, quando a IA falha ou não acha nada", async () => {
+    const { handle, ai, transactions } = setup();
+
+    ai.result = null;
+    const failed = await handle(textInput("blá blá"));
+    ai.result = { transactions: [] };
+    const empty = await handle(textInput("bom dia"));
+
+    expect(transactions).toHaveLength(0);
+    expect(failed[0].text).toContain("Não entendi");
+    expect(empty[0].text).toContain("Não entendi");
   });
 });
 
