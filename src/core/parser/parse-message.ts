@@ -52,7 +52,13 @@ function parseClause(
 
   text = text.replace(CURRENCY_WORDS, " ");
   text = text.replace(CONNECTOR_WORDS, " ");
-  const description = text.replace(/\s+/g, " ").trim() || null;
+  // Pontuação nas pontas ("ifood.", "mercado!") não faz parte da descrição: sem isso,
+  // o termo aprendido numa correção ficaria com o ponto e nunca casaria com "ifood".
+  const description =
+    text
+      .replace(/\s+/g, " ")
+      .replace(/^[\s.,;:!?]+|[\s.,;:!?]+$/g, "")
+      .trim() || null;
 
   const category = categorize(description ?? "", type, learned);
   const occurredOn = resolveOccurredOn(dateModifier, now);

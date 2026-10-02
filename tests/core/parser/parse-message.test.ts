@@ -129,6 +129,24 @@ describe("parseMessage", () => {
     ]);
   });
 
+  it.each([
+    "gastei 20 no ifood.",
+    "gastei 20 no ifood!",
+    "gastei 20 no ifood...",
+    "gastei 20, ifood;",
+  ])('ignora pontuação nas pontas da descrição: "%s"', (message) => {
+    const result = parseMessage(message, NOW);
+    expect(result?.[0].description).toBe("ifood");
+    expect(result?.[0].amountCents).toBe(2000);
+    expect(result?.[0].category).toBe("Delivery");
+  });
+
+  it("descrição que sobra só pontuação vira null", () => {
+    const result = parseMessage("gastei 20.", NOW);
+    expect(result?.[0].description).toBeNull();
+    expect(result?.[0].amountCents).toBe(2000);
+  });
+
   it("retorna null quando não reconhece a mensagem", () => {
     expect(parseMessage("oi, tudo bem?", NOW)).toBeNull();
   });

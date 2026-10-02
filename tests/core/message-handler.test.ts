@@ -158,6 +158,17 @@ describe("createMessageHandler: muda pra X", () => {
     expect(transactions[1].category).toBe("Lazer");
   });
 
+  it("aprende o termo sem a pontuação digitada (ex.: ponto final)", async () => {
+    const { handle, transactions, learned } = setup();
+    await handle(textInput("gastei 45 no ifood."));
+    await handle(textInput("muda pra lazer"));
+
+    await handle(textInput("gastei 20 no ifood"));
+
+    expect(learned).toEqual({ ifood: "Lazer" });
+    expect(transactions[1].category).toBe("Lazer");
+  });
+
   it("mexe só na última transação, mesmo quando a mensagem tinha várias", async () => {
     const { handle, transactions } = setup();
     await handle(textInput("gastei 45 no ifood e 12 no uber"));
