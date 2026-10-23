@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 300" width="1200" height="300" role="img" aria-label="Bot Financeiro — Manda &quot;gastei 45 no ifood&quot; no WhatsApp e o bot faz o resto">
+  <title>Bot Financeiro — Manda &quot;gastei 45 no ifood&quot; no WhatsApp e o bot faz o resto</title>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0b0f17"/><stop offset="1" stop-color="#111827"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.85" cy="0.3" r="0.6">
+      <stop offset="0" stop-color="#22c55e" stop-opacity="0.35"/><stop offset="1" stop-color="#22c55e" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="txt" x1="0" x2="1">
+      <stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#86efac"/>
+    </linearGradient>
+    <pattern id="grid" width="32" height="32" patternUnits="userSpaceOnUse">
+      <path d="M32 0H0V32" fill="none" stroke="#ffffff" stroke-opacity="0.04"/>
+    </pattern>
+    <linearGradient id="scan" x1="0" x2="1"><stop offset="0" stop-color="#22c55e" stop-opacity="0"/><stop offset="0.5" stop-color="#22c55e" stop-opacity="0.9"/><stop offset="1" stop-color="#22c55e" stop-opacity="0"/></linearGradient>
+    <clipPath id="r"><rect width="1200" height="300" rx="18"/></clipPath>
+  </defs>
+  <g clip-path="url(#r)">
+    <rect width="1200" height="300" fill="url(#bg)"/>
+    <rect width="1200" height="300" fill="url(#grid)"/>
+    <rect width="1200" height="300" fill="url(#glow)">
+      <animate attributeName="opacity" values="0.7;1;0.7" dur="6s" repeatCount="indefinite"/>
+    </rect>
+    <g opacity="0"><animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.1;0.9;1" dur="6s" begin="0s" repeatCount="indefinite"/><rect x="860" y="70" width="196" height="40" rx="12" fill="#1f2937" stroke="#22c55e" stroke-opacity="0.35"/><text x="876" y="96" font-family="'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace" font-size="15" fill="#e6edf3">gastei 45 no ifood</text></g>
+    <g opacity="0"><animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.1;0.9;1" dur="6s" begin="1.2s" repeatCount="indefinite"/><rect x="900" y="130" width="250" height="40" rx="12" fill="#0b3d2e" stroke="#22c55e" stroke-opacity="0.35"/><text x="916" y="156" font-family="'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace" font-size="15" fill="#a7f3d0">✅ R$ 45,00 em Delivery</text></g>
+    <g opacity="0"><animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.1;0.9;1" dur="6s" begin="2.0s" repeatCount="indefinite"/><rect x="940" y="190" width="200" height="40" rx="12" fill="#0b3d2e" stroke="#22c55e" stroke-opacity="0.35"/><text x="956" y="216" font-family="'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace" font-size="15" fill="#a7f3d0">saldo R$ 876,60</text></g>
+    <rect y="0" width="260" height="2" fill="url(#scan)">
+      <animate attributeName="x" values="-260;1200" dur="4.5s" repeatCount="indefinite"/>
+    </rect>
+    <g font-family="'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace" font-size="15" fill="#86efac">
+      <circle cx="70" cy="64" r="5" fill="#22c55e"><animate attributeName="opacity" values="1;0.25;1" dur="1.6s" repeatCount="indefinite"/></circle>
+      <text x="84" y="69" letter-spacing="2">FINANÇAS PESSOAIS PELO WHATSAPP</text>
+    </g>
+    <text x="62" y="138" font-family="'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="58" font-weight="800" fill="url(#txt)">Bot Financeiro</text>
+    <text x="64" y="182" font-family="'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="22" fill="#9da7b3">Manda &quot;gastei 45 no ifood&quot; no WhatsApp e o bot faz o resto</text>
+    <g transform="translate(64,214)"><rect width="88" height="32" rx="16" fill="#ffffff" fill-opacity="0.06" stroke="#22c55e" stroke-opacity="0.45"/><text x="44.0" y="21" text-anchor="middle" font-family="'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace" font-size="14" fill="#e6edf3">Next.js</text></g><g transform="translate(162,214)"><rect width="174" height="32" rx="16" fill="#ffffff" fill-opacity="0.06" stroke="#22c55e" stroke-opacity="0.45"/><text x="87.0" y="21" text-anchor="middle" font-family="'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace" font-size="14" fill="#e6edf3">TypeScript strict</text></g><g transform="translate(346,214)"><rect width="96" height="32" rx="16" fill="#ffffff" fill-opacity="0.06" stroke="#22c55e" stroke-opacity="0.45"/><text x="48.0" y="21" text-anchor="middle" font-family="'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace" font-size="14" fill="#e6edf3">Supabase</text></g><g transform="translate(452,214)"><rect width="182" height="32" rx="16" fill="#ffffff" fill-opacity="0.06" stroke="#22c55e" stroke-opacity="0.45"/><text x="91.0" y="21" text-anchor="middle" font-family="'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace" font-size="14" fill="#e6edf3">WhatsApp Cloud API</text></g><g transform="translate(644,214)"><rect width="122" height="32" rx="16" fill="#ffffff" fill-opacity="0.06" stroke="#22c55e" stroke-opacity="0.45"/><text x="61.0" y="21" text-anchor="middle" font-family="'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace" font-size="14" fill="#e6edf3">Vitest + CI</text></g>
+    <rect x="0.5" y="0.5" width="1199" height="299" rx="18" fill="none" stroke="#ffffff" stroke-opacity="0.08"/>
+  </g>
+</svg>

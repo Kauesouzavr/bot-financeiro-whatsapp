@@ -1,4 +1,16 @@
-# Bot Financeiro no WhatsApp
+<div align="center">
+
+<img src=".github/assets/banner.svg" alt="Bot Financeiro no WhatsApp" width="100%"/>
+
+<img src="https://img.shields.io/badge/Next.js-000000?style=for-the-badge&logo=nextdotjs&logoColor=white" alt="Next.js"/> <img src="https://img.shields.io/badge/TypeScript_strict-3178C6?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript strict"/> <img src="https://img.shields.io/badge/Supabase-3ECF8E?style=for-the-badge&logo=supabase&logoColor=white" alt="Supabase"/> <img src="https://img.shields.io/badge/WhatsApp_Cloud_API-25D366?style=for-the-badge&logo=whatsapp&logoColor=white" alt="WhatsApp Cloud API"/> <img src="https://img.shields.io/badge/Vitest-6E9F18?style=for-the-badge&logo=vitest&logoColor=white" alt="Vitest"/>
+
+<a href="https://github.com/Kauesouzavr/bot-financeiro-whatsapp/actions/workflows/ci.yml"><img src="https://github.com/Kauesouzavr/bot-financeiro-whatsapp/actions/workflows/ci.yml/badge.svg" alt="CI"/></a> <a href="https://github.com/Kauesouzavr/bot-financeiro-whatsapp/actions/workflows/codeql.yml"><img src="https://github.com/Kauesouzavr/bot-financeiro-whatsapp/actions/workflows/codeql.yml/badge.svg" alt="CodeQL"/></a> <a href="https://github.com/Kauesouzavr/bot-financeiro-whatsapp/actions/workflows/secret-scan.yml"><img src="https://github.com/Kauesouzavr/bot-financeiro-whatsapp/actions/workflows/secret-scan.yml/badge.svg" alt="Secret scan"/></a>
+
+<a href="#arquitetura"><b>Arquitetura</b></a> · <a href="#o-núcleo-srccore"><b>O núcleo</b></a> · <a href="#whatsapp-srcchannelswhatsapp--appapiwebhookwhatsapp"><b>WhatsApp</b></a> · <a href="SECURITY.md"><b>Segurança</b></a>
+
+</div>
+
+> 🇺🇸 **In English:** a personal-finance bot: send "gastei 45 no ifood" on WhatsApp and it records, categorizes and replies with the monthly balance. Clean architecture (pure, fully tested core with no I/O; channels only translate input/output), HMAC-verified webhook, idempotent processing and a free-tier quota guard. Next.js + strict TypeScript + Supabase, zero cost.
 
 Bot de finanças pessoais: manda "gastei 45 no ifood" (texto, áudio ou foto de comprovante PIX) pro WhatsApp, o bot registra, categoriza e responde com o saldo do mês.
 
@@ -56,7 +68,7 @@ Abre [http://localhost:3000](http://localhost:3000).
 | `npm run dev`        | servidor de desenvolvimento       |
 | `npm run build`      | build de produção                 |
 | `npm run lint`       | ESLint                            |
-| `npm run typecheck`  | checa os tipos TypeScript (`tsc`) |
+| `npm run typecheck`  | gera os tipos das rotas (`next typegen`) e checa tudo com `tsc` |
 | `npm test`           | roda os testes (Vitest)           |
 | `npm run test:watch` | testes em modo watch              |
 | `npm run format`     | formata tudo com Prettier         |
@@ -116,3 +128,7 @@ Regra de negócio pura, sem I/O, 100% testável:
 **Fases 1 a 3 concluídas:** fundação, núcleo (parser/categorias/saldo/respostas), simulador e a integração com o WhatsApp (webhook, assinatura, números autorizados, idempotência, cota e modo silencioso). Testes automatizados cobrem todos os exemplos de mensagem do escopo do projeto, a verificação de assinatura e a lógica de cota.
 
 Próxima fase: IA de reserva (Groq) para mensagens fora do padrão, e correções (`muda pra X`, `apaga o último`).
+
+---
+
+Feito por **Kauê Souza** · [LinkedIn](https://www.linkedin.com/in/kauesouzaproti/) · [GitHub](https://github.com/Kauesouzavr)
