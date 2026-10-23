@@ -68,7 +68,7 @@ Abre [http://localhost:3000](http://localhost:3000).
 | `npm run dev`        | servidor de desenvolvimento       |
 | `npm run build`      | build de produção                 |
 | `npm run lint`       | ESLint                            |
-| `npm run typecheck`  | checa os tipos TypeScript (`tsc`) |
+| `npm run typecheck`  | gera os tipos das rotas (`next typegen`) e checa tudo com `tsc` |
 | `npm test`           | roda os testes (Vitest)           |
 | `npm run test:watch` | testes em modo watch              |
 | `npm run format`     | formata tudo com Prettier         |
