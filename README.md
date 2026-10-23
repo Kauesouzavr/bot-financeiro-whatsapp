@@ -107,6 +107,8 @@ Regra de negócio pura, sem I/O, 100% testável:
 
 `/simulador` é um chat local que conversa com o núcleo de verdade (grava no Supabase de verdade), usando um usuário de teste fixo — não o seu número real de WhatsApp.
 
+Como ele grava no banco de verdade e não tem login, **só funciona fora de produção** (`npm run dev`). Na Vercel a página responde 404 e a Server Action recusa o envio, a não ser que `SIMULATOR_ENABLED=true` seja configurado de propósito (`src/channels/simulator/enabled.ts`, coberto por testes). As mensagens também têm limite de 500 caracteres.
+
 ## WhatsApp (`src/channels/whatsapp` + `app/api/webhook/whatsapp`)
 
 - **`verify-signature`** — valida o `X-Hub-Signature-256` (HMAC SHA-256 com o App Secret) sobre o corpo cru da requisição.
