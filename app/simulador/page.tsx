@@ -1,6 +1,10 @@
+import { notFound } from "next/navigation";
+import { isSimulatorEnabled } from "@/channels/simulator/enabled";
 import { SimulatorChat } from "@/channels/simulator/simulator-chat";
 
 export default function SimuladorPage() {
+  if (!isSimulatorEnabled()) notFound();
+
   return (
     <main style={{ maxWidth: 480, margin: "0 auto", padding: "1rem", fontFamily: "sans-serif" }}>
       <h1>Simulador</h1>
