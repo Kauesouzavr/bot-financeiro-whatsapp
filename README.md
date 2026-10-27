@@ -6,11 +6,11 @@
 
 <a href="https://github.com/Kauesouzavr/bot-financeiro-whatsapp/actions/workflows/ci.yml"><img src="https://github.com/Kauesouzavr/bot-financeiro-whatsapp/actions/workflows/ci.yml/badge.svg" alt="CI"/></a> <a href="https://github.com/Kauesouzavr/bot-financeiro-whatsapp/actions/workflows/codeql.yml"><img src="https://github.com/Kauesouzavr/bot-financeiro-whatsapp/actions/workflows/codeql.yml/badge.svg" alt="CodeQL"/></a> <a href="https://github.com/Kauesouzavr/bot-financeiro-whatsapp/actions/workflows/secret-scan.yml"><img src="https://github.com/Kauesouzavr/bot-financeiro-whatsapp/actions/workflows/secret-scan.yml/badge.svg" alt="Secret scan"/></a>
 
-<a href="#arquitetura"><b>Arquitetura</b></a> · <a href="#o-núcleo-srccore"><b>O núcleo</b></a> · <a href="#whatsapp-srcchannelswhatsapp--appapiwebhookwhatsapp"><b>WhatsApp</b></a> · <a href="SECURITY.md"><b>Segurança</b></a>
+<a href="#arquitetura"><b>Arquitetura</b></a> &nbsp;&nbsp;&nbsp; <a href="#o-núcleo-srccore"><b>O núcleo</b></a> &nbsp;&nbsp;&nbsp; <a href="#whatsapp-srcchannelswhatsapp--appapiwebhookwhatsapp"><b>WhatsApp</b></a> &nbsp;&nbsp;&nbsp; <a href="SECURITY.md"><b>Segurança</b></a>
 
 </div>
 
-> 🇺🇸 **In English:** a personal-finance bot: send "gastei 45 no ifood" on WhatsApp and it records, categorizes and replies with the monthly balance. Clean architecture (pure, fully tested core with no I/O; channels only translate input/output), HMAC-verified webhook, idempotent processing and a free-tier quota guard. Next.js + strict TypeScript + Supabase, zero cost.
+> **In English:** a personal-finance bot: send "gastei 45 no ifood" on WhatsApp and it records, categorizes and replies with the monthly balance. Clean architecture (pure, fully tested core with no I/O; channels only translate input/output), HMAC-verified webhook, idempotent processing and a free-tier quota guard. Next.js + strict TypeScript + Supabase, zero cost.
 
 Bot de finanças pessoais: manda "gastei 45 no ifood" (texto, áudio ou foto de comprovante PIX) pro WhatsApp, o bot registra, categoriza e responde com o saldo do mês.
 
@@ -31,7 +31,7 @@ Projeto pessoal com dois objetivos: uso real no dia a dia e portfólio para vaga
 
 ## Arquitetura
 
-O núcleo (`src/core`) não sabe de onde a mensagem veio — é regra de negócio pura, sem I/O, 100% testável. Os canais (`src/channels`) só traduzem entrada e saída: hoje existe o canal WhatsApp e, a partir da Fase 2, um simulador web local.
+O núcleo (`src/core`) não sabe de onde a mensagem veio: é regra de negócio pura, sem I/O, 100% testável. Os canais (`src/channels`) só traduzem entrada e saída: hoje existe o canal WhatsApp e, a partir da Fase 2, um simulador web local.
 
 ```
 src/
@@ -83,39 +83,39 @@ As migrations ficam em `supabase/migrations/`, numeradas na ordem em que devem s
 4. `0004_create_pending_actions.sql`
 5. `0005_create_processed_messages.sql`
 6. `0006_create_monthly_usage.sql`
-7. `0007_seed_simulator_user.sql` — cria o usuário fixo usado pelo `/simulador`
+7. `0007_seed_simulator_user.sql`: cria o usuário fixo usado pelo `/simulador`
 
-Todas as tabelas têm **Row Level Security (RLS)** ligado e nenhuma policy: só o backend, usando a chave secreta (`SUPABASE_SECRET_KEY`, que ignora RLS), acessa os dados. Isso é propositalmente redundante — mesmo que a chave pública vaze ou seja usada por engano em algum lugar, ninguém lê ou escreve nas tabelas.
+Todas as tabelas têm **Row Level Security (RLS)** ligado e nenhuma policy: só o backend, usando a chave secreta (`SUPABASE_SECRET_KEY`, que ignora RLS), acessa os dados. Isso é propositalmente redundante: mesmo que a chave pública vaze ou seja usada por engano em algum lugar, ninguém lê ou escreve nas tabelas.
 
 ## Variáveis de ambiente
 
-Ver `.env.example` para a lista completa. Nenhum segredo vai pro Git — `.env.local` está no `.gitignore`.
+Ver `.env.example` para a lista completa. Nenhum segredo vai pro Git, e o `.env.local` está no `.gitignore`.
 
 ## O núcleo (`src/core`)
 
 Regra de negócio pura, sem I/O, 100% testável:
 
-- **`parser`** — reconhece frases como "gastei 45 no ifood" ou "recebi 1500 salário" por regras (sem IA ainda) e devolve uma ou mais transações estruturadas, sempre em centavos.
-- **`categories`** — dicionário de palavra-chave → categoria (ex.: "ifood" → Delivery).
-- **`date/sao-paulo`** — resolve "hoje", "ontem" e "dia N" no fuso de São Paulo, usando só `Intl` (sem biblioteca de datas).
-- **`balance`** — soma entradas/saídas de um conjunto de transações e calcula o saldo.
-- **`replies`** — formata as mensagens de resposta.
-- **`handle-message.ts`** — o ponto de entrada: liga parser → categoria → grava no Supabase → recalcula saldo → formata resposta. É o mesmo código que o simulador e o WhatsApp chamam.
-- **`quota`** — decide se manda a resposta ou entra em modo silencioso, e se deve avisar que está perto do limite mensal.
+- **`parser`**: reconhece frases como "gastei 45 no ifood" ou "recebi 1500 salário" por regras (sem IA ainda) e devolve uma ou mais transações estruturadas, sempre em centavos.
+- **`categories`**: dicionário de palavra-chave → categoria (ex.: "ifood" → Delivery).
+- **`date/sao-paulo`**: resolve "hoje", "ontem" e "dia N" no fuso de São Paulo, usando só `Intl` (sem biblioteca de datas).
+- **`balance`**: soma entradas/saídas de um conjunto de transações e calcula o saldo.
+- **`replies`**: formata as mensagens de resposta.
+- **`handle-message.ts`**: o ponto de entrada: liga parser → categoria → grava no Supabase → recalcula saldo → formata resposta. É o mesmo código que o simulador e o WhatsApp chamam.
+- **`quota`**: decide se manda a resposta ou entra em modo silencioso, e se deve avisar que está perto do limite mensal.
 
 ## Simulador
 
-`/simulador` é um chat local que conversa com o núcleo de verdade (grava no Supabase de verdade), usando um usuário de teste fixo — não o seu número real de WhatsApp.
+`/simulador` é um chat local que conversa com o núcleo de verdade (grava no Supabase de verdade), usando um usuário de teste fixo, e não o seu número real de WhatsApp.
 
 Como ele grava no banco de verdade e não tem login, **só funciona fora de produção** (`npm run dev`). Na Vercel a página responde 404 e a Server Action recusa o envio, a não ser que `SIMULATOR_ENABLED=true` seja configurado de propósito (`src/channels/simulator/enabled.ts`, coberto por testes). As mensagens também têm limite de 500 caracteres.
 
 ## WhatsApp (`src/channels/whatsapp` + `app/api/webhook/whatsapp`)
 
-- **`verify-signature`** — valida o `X-Hub-Signature-256` (HMAC SHA-256 com o App Secret) sobre o corpo cru da requisição.
-- **`phone`** — o `wa_id` pode chegar com ou sem o nono dígito; gera as duas formas pra comparar com a tabela `users`, e mascara o telefone pra log seguro.
-- **`parse-webhook`** — extrai as mensagens do payload da Meta (ignora eventos de status como "entregue"/"lido") e traduz pro formato normalizado do núcleo.
-- **`send-message`** — envia texto pela Graph API. Não existe função de template (proibido: geraria cobrança e o bot só responde dentro da janela de 24h de uma mensagem recebida).
-- **`route.ts`** — `GET` faz o handshake de verificação do webhook; `POST` valida a assinatura, responde `200` na hora e processa a mensagem depois com `after()` (idempotência por `wa_message_id` → número autorizado e ativo → núcleo → cota → envia).
+- **`verify-signature`**: valida o `X-Hub-Signature-256` (HMAC SHA-256 com o App Secret) sobre o corpo cru da requisição.
+- **`phone`**: o `wa_id` pode chegar com ou sem o nono dígito; gera as duas formas pra comparar com a tabela `users`, e mascara o telefone pra log seguro.
+- **`parse-webhook`**: extrai as mensagens do payload da Meta (ignora eventos de status como "entregue"/"lido") e traduz pro formato normalizado do núcleo.
+- **`send-message`**: envia texto pela Graph API. Não existe função de template (proibido: geraria cobrança e o bot só responde dentro da janela de 24h de uma mensagem recebida).
+- **`route.ts`**: `GET` faz o handshake de verificação do webhook; `POST` valida a assinatura, responde `200` na hora e processa a mensagem depois com `after()` (idempotência por `wa_message_id` → número autorizado e ativo → núcleo → cota → envia).
 
 ## Deploy (Vercel) e configuração na Meta
 
@@ -133,4 +133,4 @@ Próxima fase: IA de reserva (Groq) para mensagens fora do padrão, e correçõe
 
 ---
 
-Feito por **Kauê Souza** · [LinkedIn](https://www.linkedin.com/in/kauesouzaproti/) · [GitHub](https://github.com/Kauesouzavr)
+Feito por **Kauê Souza**. Para conversar, me chame no [LinkedIn](https://www.linkedin.com/in/kauesouzaproti/).
