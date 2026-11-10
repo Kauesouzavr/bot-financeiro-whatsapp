@@ -138,6 +138,7 @@ Como ele grava no banco de verdade e não tem login, **só funciona fora de prod
 - **Segurança:** o `proxy.ts` renova a sessão e redireciona quem não entrou, mas é só uma checagem rápida pelo cookie. A checagem de verdade (`requireAppUser`, que pergunta ao Supabase se o token vale e acha o usuário ativo) roda em toda página e em toda Server Action, porque Server Actions são endpoints que podem ser chamados direto. O RLS segue ligado sem policies e todas as consultas filtram por `user_id`. A mensagem de erro do login é sempre a mesma, para não revelar quais e-mails existem. Limite de 500 caracteres por mensagem. Nenhum conteúdo de mensagem vai para log.
 - **Histórico:** as últimas 100 mensagens de cada pessoa ficam em `chat_messages`, com botão "Limpar". Como o texto é guardado como foi digitado, não escreva senhas no chat.
 - **Instalável:** `app/manifest.ts` e ícones gerados por código (`/pwa-icon/[size]`). Service worker e notificações ficam para uma próxima fase.
+- **Comprovante (foto ou PDF):** o botão 📎 envia um comprovante de Pix ou pagamento. No celular a foto é reduzida (até 1600 px) antes de enviar. O servidor confere o login, o tamanho (até 3 MB) e o **tipo real do arquivo pelos primeiros bytes**, e o Gemini lê valor, quem recebeu ou enviou, data e se foi entrada ou saída. Tudo é validado com zod: o valor vira centavos pelo conversor do núcleo (sem float), e data impossível, no futuro ou com mais de 13 meses é recusada. O resultado vira um **cartão com Salvar e Cancelar**: **só grava depois do Salvar**. A pendência fica na tabela `pending_actions`, vale 24 horas e é única por pessoa; ela é apagada e devolvida numa operação só do banco, então toque duplo não grava duas vezes, e se salvar falhar o comprovante volta pra tentar de novo. A imagem **nunca é armazenada**: é lida e descartada. Privacidade: no plano grátis o Google pode treinar com o que o Gemini recebe, então o arquivo vai sem identificar quem enviou, e o prompt manda ignorar CPF/CNPJ e números de conta.
 
 ## WhatsApp (`src/channels/whatsapp` + `app/api/webhook/whatsapp`)
 
@@ -159,7 +160,7 @@ Como ele grava no banco de verdade e não tem login, **só funciona fora de prod
 
 **Fases 1 a 4 implementadas:** fundação, núcleo (parser/categorias/saldo/respostas), simulador, a integração com o WhatsApp (webhook, assinatura, números autorizados, idempotência, cota e modo silencioso), a IA de reserva (Groq) e as correções com aprendizado de categoria por usuário. Falta apenas o teste ponta a ponta com o WhatsApp real (Fase 3). Testes automatizados cobrem os exemplos de mensagem do escopo do projeto, os comandos, as categorias aprendidas, a IA de reserva (com `fetch` simulado), a verificação de assinatura e a lógica de cota.
 
-**App instalável com login e chat** (Fase B do plano do app): implementado. Próximas: áudio e foto dentro do app, depois resumos, orçamentos e notificações.
+**App instalável com login e chat** (Fase B do plano do app) e **comprovante por foto ou PDF** (Fase C1): implementados. Próximas: mensagem de voz (Fase C2), compartilhar do banco/WhatsApp para o app (Android), depois resumos, orçamentos e notificações.
 
 ---
 

@@ -179,3 +179,87 @@
     color: #e9edef;
   }
 }
+
+/* Botão de anexo e cartão de confirmação do comprovante. */
+.fileInput {
+  /* Escondido de verdade (some da tela e do leitor de tela): quem abre o seletor é o botão 📎. */
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.attach {
+  flex: none;
+  width: 2.75rem;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  font-size: 1.35rem;
+  cursor: pointer;
+}
+
+.attach:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.pending {
+  display: grid;
+  gap: 0.6rem;
+  padding: 0.7rem 0.9rem;
+  background: #fff8e1;
+  border-top: 1px solid #f0d98a;
+}
+
+.pendingText {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.35;
+}
+
+.pendingActions {
+  display: flex;
+  gap: 0.6rem;
+}
+
+.save,
+.cancel {
+  flex: 1;
+  padding: 0.65rem 1rem;
+  border-radius: 999px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.save {
+  border: 0;
+  background: #00a884;
+  color: #ffffff;
+}
+
+.cancel {
+  border: 1px solid #c7cdd1;
+  background: transparent;
+  color: inherit;
+}
+
+.save:disabled,
+.cancel:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+@media (prefers-color-scheme: dark) {
+  .pending {
+    background: #2b2a1c;
+    border-top-color: #5a5223;
+  }
+
+  .cancel {
+    border-color: #3b4a54;
+  }
+}

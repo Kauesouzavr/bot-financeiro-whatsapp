@@ -18,6 +18,12 @@ const securityHeaders: { key: string; value: string }[] = [
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  // Comprovantes (foto ou PDF) chegam por Server Action: o padrão de 1 MB não cabe.
+  // O arquivo em si é limitado a 3 MB no código; sobra espaço pro envelope do formulário.
+  // A Vercel também limita o corpo das requisições (cerca de 4,5 MB).
+  experimental: {
+    serverActions: { bodySizeLimit: "4mb" },
+  },
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },

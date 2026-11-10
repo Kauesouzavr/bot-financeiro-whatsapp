@@ -1,48 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
-import {
-  CHAT_HISTORY_LIMIT,
-  MAX_CHAT_MESSAGE_LENGTH,
-  createChatService,
-  type ChatDeps,
-  type ChatMessage,
-} from "@/core/chat/chat-service";
-import type { CoreInput, CoreReply } from "@/core/types";
-import { NOW } from "../../helpers/fake-deps";
+import { CHAT_HISTORY_LIMIT, MAX_CHAT_MESSAGE_LENGTH } from "@/core/chat/chat-service";
+import type { CoreReply } from "@/core/types";
+import { createFakeChat } from "../../helpers/fake-chat";
 
 function setup(options: { replies?: CoreReply[]; handleError?: Error } = {}) {
-  const stored: { userId: string; role: string; text: string }[] = [];
-  const handled: CoreInput[] = [];
-
-  const deps: ChatDeps = {
-    handleMessage: async (input) => {
-      handled.push(input);
-      if (options.handleError) throw options.handleError;
-      return options.replies ?? [{ type: "text", text: "✅ R$ 45,00 em Delivery (ifood)" }];
-    },
-    listMessages: vi.fn(async (userId: string): Promise<ChatMessage[]> =>
-      stored
-        .filter((message) => message.userId === userId)
-        .map((message, index) => ({
-          id: `m-${index}`,
-          role: message.role as ChatMessage["role"],
-          text: message.text,
-        })),
-    ),
-    appendMessages: async (userId, messages) => {
-      for (const message of messages) stored.push({ userId, ...message });
-    },
-    clearMessages: async (userId) => {
-      for (let i = stored.length - 1; i >= 0; i--)
-        if (stored[i].userId === userId) stored.splice(i, 1);
-    },
-    getMonthTransactions: async () => [
-      { type: "income", amountCents: 150000 },
-      { type: "expense", amountCents: 4500 },
-    ],
-    now: () => NOW,
-  };
-
-  return { service: createChatService(deps), deps, stored, handled };
+  return createFakeChat(options);
 }
 
 describe("createChatService: enviar mensagem", () => {

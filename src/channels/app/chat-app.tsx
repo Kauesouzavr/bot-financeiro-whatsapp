@@ -1,14 +1,35 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition, type FormEvent } from "react";
-import { MAX_CHAT_MESSAGE_LENGTH, type ChatMessage } from "@/core/chat/chat-service";
-import { clearAppChat, sendAppMessage, signOutAction } from "./actions";
+import {
+  useEffect,
+  useRef,
+  useState,
+  useTransition,
+  type ChangeEvent,
+  type FormEvent,
+} from "react";
+import { RECEIPT_MESSAGES } from "@/core/ai/receipt";
+import {
+  MAX_CHAT_MESSAGE_LENGTH,
+  type ChatMessage,
+  type PendingView,
+} from "@/core/chat/chat-service";
+import {
+  cancelReceiptAction,
+  clearAppChat,
+  confirmReceiptAction,
+  sendAppMessage,
+  sendReceiptAction,
+  signOutAction,
+} from "./actions";
 import styles from "./chat-app.module.css";
+import { prepareReceiptFile } from "./prepare-receipt-file";
 
 interface ChatAppProps {
   userName: string | null;
   initialMessages: ChatMessage[];
   initialBalanceLine: string;
+  initialPending: PendingView | null;
 }
 
 let localMessageCounter = 0;
@@ -17,17 +38,28 @@ function localMessage(role: ChatMessage["role"], text: string): ChatMessage {
   return { id: `local-${localMessageCounter}`, role, text };
 }
 
-export function ChatApp({ userName, initialMessages, initialBalanceLine }: ChatAppProps) {
+export function ChatApp({
+  userName,
+  initialMessages,
+  initialBalanceLine,
+  initialPending,
+}: ChatAppProps) {
   const [messages, setMessages] = useState<ChatMessage[]>(initialMessages);
   const [balanceLine, setBalanceLine] = useState(initialBalanceLine);
+  const [pending, setPending] = useState<PendingView | null>(initialPending);
   const [input, setInput] = useState("");
   const [isPending, startTransition] = useTransition();
   const endRef = useRef<HTMLDivElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   // Mantém a última mensagem à vista, como num chat de verdade.
   useEffect(() => {
     endRef.current?.scrollIntoView({ block: "end" });
-  }, [messages, isPending]);
+  }, [messages, isPending, pending]);
+
+  function addMessage(role: ChatMessage["role"], text: string) {
+    setMessages((previous) => [...previous, localMessage(role, text)]);
+  }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -35,16 +67,71 @@ export function ChatApp({ userName, initialMessages, initialBalanceLine }: ChatA
     if (!text || isPending) return;
 
     setInput("");
-    setMessages((previous) => [...previous, localMessage("user", text)]);
+    addMessage("user", text);
 
     startTransition(async () => {
       const result = await sendAppMessage(text);
       if (result.ok) {
-        setMessages((previous) => [...previous, localMessage("bot", result.botText)]);
+        addMessage("bot", result.botText);
         setBalanceLine(result.balanceLine);
       } else {
-        setMessages((previous) => [...previous, localMessage("bot", result.error)]);
+        addMessage("bot", result.error);
       }
+    });
+  }
+
+  function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    // Limpa o campo: assim dá pra escolher o mesmo arquivo de novo depois.
+    event.target.value = "";
+    if (!file || isPending) return;
+
+    addMessage("user", "📎 Comprovante enviado");
+
+    startTransition(async () => {
+      const prepared = await prepareReceiptFile(file);
+      if (!prepared) {
+        addMessage("bot", RECEIPT_MESSAGES.invalidFile);
+        return;
+      }
+
+      const formData = new FormData();
+      formData.set("file", prepared);
+      const result = await sendReceiptAction(formData);
+
+      if (result.ok) {
+        addMessage("bot", result.botText);
+        setPending(result.pending);
+      } else {
+        addMessage("bot", result.error);
+      }
+    });
+  }
+
+  function handleConfirm() {
+    if (!pending || isPending) return;
+    const id = pending.id;
+
+    startTransition(async () => {
+      const result = await confirmReceiptAction(id);
+      if (result.ok) {
+        addMessage("bot", result.botText);
+        setBalanceLine(result.balanceLine);
+      } else {
+        addMessage("bot", result.error);
+      }
+      setPending(null);
+    });
+  }
+
+  function handleCancelPending() {
+    if (!pending || isPending) return;
+    const id = pending.id;
+
+    startTransition(async () => {
+      const result = await cancelReceiptAction(id);
+      addMessage("bot", result.ok ? result.botText : result.error);
+      setPending(null);
     });
   }
 
@@ -57,6 +144,7 @@ export function ChatApp({ userName, initialMessages, initialBalanceLine }: ChatA
     startTransition(async () => {
       await clearAppChat();
       setMessages([]);
+      setPending(null);
     });
   }
 
@@ -91,6 +179,8 @@ export function ChatApp({ userName, initialMessages, initialBalanceLine }: ChatA
             &quot;recebi 1500 salário&quot;
             <br />
             &quot;muda pra lazer&quot; · &quot;apaga o último&quot;
+            <br />
+            Ou toque no 📎 e envie a foto ou o PDF de um comprovante.
           </p>
         )}
         {messages.map((message) => (
@@ -105,7 +195,49 @@ export function ChatApp({ userName, initialMessages, initialBalanceLine }: ChatA
         <div ref={endRef} />
       </main>
 
+      {pending && (
+        <div className={styles.pending} role="group" aria-label="Confirmação do comprovante">
+          <p className={styles.pendingText}>{pending.summary}</p>
+          <div className={styles.pendingActions}>
+            <button
+              className={styles.cancel}
+              type="button"
+              onClick={handleCancelPending}
+              disabled={isPending}
+            >
+              Cancelar
+            </button>
+            <button
+              className={styles.save}
+              type="button"
+              onClick={handleConfirm}
+              disabled={isPending}
+            >
+              Salvar
+            </button>
+          </div>
+        </div>
+      )}
+
       <form className={styles.composer} onSubmit={handleSubmit}>
+        <input
+          ref={fileRef}
+          className={styles.fileInput}
+          type="file"
+          accept="image/*,application/pdf"
+          onChange={handleFileChange}
+          tabIndex={-1}
+          aria-hidden="true"
+        />
+        <button
+          className={styles.attach}
+          type="button"
+          onClick={() => fileRef.current?.click()}
+          disabled={isPending}
+          aria-label="Enviar comprovante (foto ou PDF)"
+        >
+          📎
+        </button>
         <input
           className={styles.field}
           value={input}

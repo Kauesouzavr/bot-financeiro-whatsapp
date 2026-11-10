@@ -8,6 +8,9 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
+// Ler um comprovante com a IA pode demorar mais que uma página comum.
+export const maxDuration = 30;
+
 export default async function AppPage() {
   // Sem usuário válido, esta linha redireciona e o resto nunca roda.
   const user = await requireAppUser();
@@ -18,6 +21,7 @@ export default async function AppPage() {
       userName={user.name}
       initialMessages={chat.messages}
       initialBalanceLine={chat.balanceLine}
+      initialPending={chat.pending}
     />
   );
 }
