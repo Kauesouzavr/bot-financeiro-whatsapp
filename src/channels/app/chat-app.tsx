@@ -4,11 +4,19 @@ import {
   useEffect,
   useRef,
   useState,
+  useSyncExternalStore,
   useTransition,
   type ChangeEvent,
   type FormEvent,
 } from "react";
 import { RECEIPT_MESSAGES } from "@/core/ai/receipt";
+import {
+  VOICE_MAX_BYTES,
+  VOICE_MAX_SECONDS,
+  VOICE_MESSAGES,
+  VOICE_MIN_SECONDS,
+  VOICE_USER_TEXT,
+} from "@/core/ai/voice";
 import {
   MAX_CHAT_MESSAGE_LENGTH,
   type ChatMessage,
@@ -20,10 +28,17 @@ import {
   confirmReceiptAction,
   sendAppMessage,
   sendReceiptAction,
+  sendVoiceAction,
   signOutAction,
 } from "./actions";
 import styles from "./chat-app.module.css";
 import { prepareReceiptFile } from "./prepare-receipt-file";
+import {
+  formatRecordingTime,
+  isVoiceRecordingSupported,
+  startVoiceRecording,
+  type VoiceRecording,
+} from "./voice-recorder";
 
 interface ChatAppProps {
   userName: string | null;
@@ -31,6 +46,9 @@ interface ChatAppProps {
   initialBalanceLine: string;
   initialPending: PendingView | null;
 }
+
+// O navegador não ganha nem perde microfone com a página aberta: não há nada a "assinar".
+const subscribeNever = () => () => {};
 
 let localMessageCounter = 0;
 function localMessage(role: ChatMessage["role"], text: string): ChatMessage {
@@ -52,10 +70,33 @@ export function ChatApp({
   const endRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
+  const [isRecording, setIsRecording] = useState(false);
+  const [seconds, setSeconds] = useState(0);
+  const recordingRef = useRef<VoiceRecording | null>(null);
+  const recordingStartedAt = useRef(0);
+  // No servidor e na primeira pintura não há microfone: o botão 🎤 só aparece depois que o navegador confirma.
+  const voiceSupported = useSyncExternalStore(
+    subscribeNever,
+    isVoiceRecordingSupported,
+    () => false,
+  );
+
   // Mantém a última mensagem à vista, como num chat de verdade.
   useEffect(() => {
     endRef.current?.scrollIntoView({ block: "end" });
   }, [messages, isPending, pending]);
+
+  // Cronômetro da gravação.
+  useEffect(() => {
+    if (!isRecording) return;
+    const timer = setInterval(() => {
+      setSeconds(Math.floor((Date.now() - recordingStartedAt.current) / 1000));
+    }, 250);
+    return () => clearInterval(timer);
+  }, [isRecording]);
+
+  // Se a pessoa sair da tela no meio da gravação, solta o microfone.
+  useEffect(() => () => recordingRef.current?.cancel(), []);
 
   function addMessage(role: ChatMessage["role"], text: string) {
     setMessages((previous) => [...previous, localMessage(role, text)]);
@@ -102,6 +143,63 @@ export function ChatApp({
       if (result.ok) {
         addMessage("bot", result.botText);
         setPending(result.pending);
+      } else {
+        addMessage("bot", result.error);
+      }
+    });
+  }
+
+  async function handleStartRecording() {
+    if (isPending || isRecording) return;
+
+    try {
+      const recording = await startVoiceRecording(() => handleFinishRecording());
+      recordingRef.current = recording;
+      recordingStartedAt.current = Date.now();
+      setSeconds(0);
+      setIsRecording(true);
+    } catch {
+      // Permissão negada, ou o aparelho não conseguiu gravar.
+      addMessage("bot", VOICE_MESSAGES.micDenied);
+    }
+  }
+
+  function handleCancelRecording() {
+    recordingRef.current?.cancel();
+    recordingRef.current = null;
+    setIsRecording(false);
+  }
+
+  // Também é chamada sozinha quando a gravação chega no limite de 1 minuto.
+  function handleFinishRecording() {
+    const recording = recordingRef.current;
+    if (!recording) return;
+    recordingRef.current = null;
+    setIsRecording(false);
+
+    // Toque sem querer: descarta em vez de gastar uma chamada da IA.
+    if ((Date.now() - recordingStartedAt.current) / 1000 < VOICE_MIN_SECONDS) {
+      recording.cancel();
+      addMessage("bot", VOICE_MESSAGES.tooShort);
+      return;
+    }
+
+    addMessage("user", VOICE_USER_TEXT);
+
+    startTransition(async () => {
+      const file = await recording.stop();
+      if (!file || file.size > VOICE_MAX_BYTES) {
+        addMessage("bot", VOICE_MESSAGES.invalidFile);
+        return;
+      }
+
+      const formData = new FormData();
+      formData.set("file", file);
+      const result = await sendVoiceAction(formData);
+
+      if (result.ok) {
+        addMessage("bot", result.botText);
+        setBalanceLine(result.balanceLine);
       } else {
         addMessage("bot", result.error);
       }
@@ -156,7 +254,12 @@ export function ChatApp({
           {userName && <p className={styles.subtitle}>{userName}</p>}
         </div>
         <div className={styles.actions}>
-          <button className={styles.ghost} type="button" onClick={handleClear} disabled={isPending}>
+          <button
+            className={styles.ghost}
+            type="button"
+            onClick={handleClear}
+            disabled={isPending || isRecording}
+          >
             Limpar
           </button>
           <form action={signOutAction}>
@@ -181,6 +284,12 @@ export function ChatApp({
             &quot;muda pra lazer&quot; · &quot;apaga o último&quot;
             <br />
             Ou toque no 📎 e envie a foto ou o PDF de um comprovante.
+            {voiceSupported && (
+              <>
+                <br />
+                Ou toque no 🎤 e fale o gasto.
+              </>
+            )}
           </p>
         )}
         {messages.map((message) => (
@@ -219,39 +328,70 @@ export function ChatApp({
         </div>
       )}
 
-      <form className={styles.composer} onSubmit={handleSubmit}>
-        <input
-          ref={fileRef}
-          className={styles.fileInput}
-          type="file"
-          accept="image/*,application/pdf"
-          onChange={handleFileChange}
-          tabIndex={-1}
-          aria-hidden="true"
-        />
-        <button
-          className={styles.attach}
-          type="button"
-          onClick={() => fileRef.current?.click()}
-          disabled={isPending}
-          aria-label="Enviar comprovante (foto ou PDF)"
-        >
-          📎
-        </button>
-        <input
-          className={styles.field}
-          value={input}
-          onChange={(event) => setInput(event.target.value)}
-          placeholder="Mensagem"
-          aria-label="Mensagem"
-          maxLength={MAX_CHAT_MESSAGE_LENGTH}
-          autoComplete="off"
-          enterKeyHint="send"
-        />
-        <button className={styles.send} type="submit" disabled={isPending || !input.trim()}>
-          Enviar
-        </button>
-      </form>
+      {isRecording ? (
+        <div className={styles.composer} role="group" aria-label="Gravando mensagem de voz">
+          <button
+            className={styles.mic}
+            type="button"
+            onClick={handleCancelRecording}
+            aria-label="Cancelar gravação"
+          >
+            ✕
+          </button>
+          <p className={styles.recording}>
+            <span className={styles.recordingDot} aria-hidden="true" />
+            Gravando {formatRecordingTime(seconds)} / {formatRecordingTime(VOICE_MAX_SECONDS)}
+          </p>
+          <button className={styles.send} type="button" onClick={handleFinishRecording}>
+            Enviar
+          </button>
+        </div>
+      ) : (
+        <form className={styles.composer} onSubmit={handleSubmit}>
+          <input
+            ref={fileRef}
+            className={styles.fileInput}
+            type="file"
+            accept="image/*,application/pdf"
+            onChange={handleFileChange}
+            tabIndex={-1}
+            aria-hidden="true"
+          />
+          <button
+            className={styles.attach}
+            type="button"
+            onClick={() => fileRef.current?.click()}
+            disabled={isPending}
+            aria-label="Enviar comprovante (foto ou PDF)"
+          >
+            📎
+          </button>
+          {voiceSupported && (
+            <button
+              className={styles.mic}
+              type="button"
+              onClick={handleStartRecording}
+              disabled={isPending}
+              aria-label="Gravar mensagem de voz"
+            >
+              🎤
+            </button>
+          )}
+          <input
+            className={styles.field}
+            value={input}
+            onChange={(event) => setInput(event.target.value)}
+            placeholder="Mensagem"
+            aria-label="Mensagem"
+            maxLength={MAX_CHAT_MESSAGE_LENGTH}
+            autoComplete="off"
+            enterKeyHint="send"
+          />
+          <button className={styles.send} type="submit" disabled={isPending || !input.trim()}>
+            Enviar
+          </button>
+        </form>
+      )}
     </div>
   );
 }

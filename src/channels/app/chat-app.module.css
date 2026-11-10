@@ -191,7 +191,8 @@
   pointer-events: none;
 }
 
-.attach {
+.attach,
+.mic {
   flex: none;
   width: 2.75rem;
   border: 0;
@@ -201,9 +202,47 @@
   cursor: pointer;
 }
 
-.attach:disabled {
+.attach:disabled,
+.mic:disabled {
   opacity: 0.5;
   cursor: default;
+}
+
+/* Barra que substitui o campo de texto enquanto a voz está sendo gravada. */
+.recording {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0 0.4rem;
+  font-size: 0.95rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.recordingDot {
+  flex: none;
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 50%;
+  background: #e53935;
+  animation: recordingPulse 1.2s ease-in-out infinite;
+}
+
+@keyframes recordingPulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .recordingDot {
+    animation: none;
+  }
 }
 
 .pending {
