@@ -31,7 +31,7 @@ Projeto pessoal com dois objetivos: uso real no dia a dia e portfólio para vaga
 
 ## Arquitetura
 
-O núcleo (`src/core`) não sabe de onde a mensagem veio: é regra de negócio pura, sem I/O, 100% testável. Os canais (`src/channels`) só traduzem entrada e saída: hoje existe o canal WhatsApp e, a partir da Fase 2, um simulador web local.
+O núcleo (`src/core`) não sabe de onde a mensagem veio: é regra de negócio pura, sem I/O, 100% testável. Os canais (`src/channels`) só traduzem entrada e saída: hoje existem o canal WhatsApp, um simulador web local e o **app instalável (PWA)**, um chat com login que usa exatamente o mesmo núcleo.
 
 ```
 src/
@@ -40,16 +40,23 @@ src/
     commands/           # "muda pra X" e "apaga o último"
     categories/         # dicionário padrão + aprendizado por usuário
     ai/                 # schema (zod) e mapeamento da saída da IA de reserva
+    auth/               # regras de acesso e validação do login
+    chat/               # serviço do chat do app (histórico, limite, saldo)
     balance/            # saldo do mês
     replies/            # formatação das respostas
     message-handler.ts  # o fluxo completo, com as dependências injetadas
-  services/             # supabase, groq, gemini (I/O)
+  services/             # supabase (dados e login), groq, gemini (I/O)
   channels/
     whatsapp/           # assinatura, leitura do webhook, envio, download de mídia
     simulator/          # chat web local que usa o mesmo núcleo
+    app/                # chat do app instalável (telas, ações do servidor)
 app/
   api/webhook/whatsapp/route.ts
   simulador/page.tsx
+  entrar/               # login
+  app/page.tsx          # o chat (só para quem entrou)
+  manifest.ts           # faz o app ser instalável
+proxy.ts                # renova a sessão e redireciona quem não entrou
 supabase/migrations/    # SQL versionado
 tests/
 ```
@@ -88,6 +95,8 @@ As migrations ficam em `supabase/migrations/`, numeradas na ordem em que devem s
 6. `0006_create_monthly_usage.sql`
 7. `0007_seed_simulator_user.sql`: cria o usuário fixo usado pelo `/simulador`
 8. `0008_add_transactions_seq.sql`: coluna `seq` (numeração automática) em `transactions`. "gastei 45 no ifood e 12 no uber" grava duas linhas na mesma inserção, com o mesmo `created_at`; o `seq` desempata e define sem ambiguidade qual é a última transação (alvo de `muda pra X` e `apaga o último`)
+9. `0009_add_users_auth_user_id.sql`: liga o login do app (Supabase Auth) ao usuário do bot (`users.auth_user_id`)
+10. `0010_create_chat_messages.sql`: histórico do chat do app (últimas 100 mensagens por pessoa), também com `seq` para manter a ordem
 
 Todas as tabelas têm **Row Level Security (RLS)** ligado e nenhuma policy: só o backend, usando a chave secreta (`SUPABASE_SECRET_KEY`, que ignora RLS), acessa os dados. Isso é propositalmente redundante: mesmo que a chave pública vaze ou seja usada por engano em algum lugar, ninguém lê ou escreve nas tabelas.
 
@@ -120,6 +129,16 @@ Regra de negócio pura, sem I/O, 100% testável:
 
 Como ele grava no banco de verdade e não tem login, **só funciona fora de produção** (`npm run dev`). Na Vercel a página responde 404 e a Server Action recusa o envio, a não ser que `SIMULATOR_ENABLED=true` seja configurado de propósito (`src/channels/simulator/enabled.ts`, coberto por testes). As mensagens também têm limite de 500 caracteres.
 
+## App instalável (PWA)
+
+É um chat estilo WhatsApp que roda no navegador do celular e pode ser **instalado na tela inicial** (Android: "Instalar app"; iPhone: Compartilhar → "Adicionar à Tela de Início"). Conversa com o mesmo núcleo do bot: `gastei 45 no ifood`, `muda pra lazer`, `apaga o último`. O topo mostra o saldo do mês.
+
+- **Login:** Supabase Auth com e-mail e senha. Não existe cadastro público: as contas são criadas no painel do Supabase (Authentication → Users, com o cadastro público desligado). Só entra quem o administrador liberou.
+- **Liberar uma pessoa:** criar o login no painel e ligá-lo ao usuário do bot com o SQL descrito em `0009_add_users_auth_user_id.sql` (a mesma pessoa vê os mesmos dados no app e no WhatsApp). Login sem usuário ativo vê "Conta ainda não liberada".
+- **Segurança:** o `proxy.ts` renova a sessão e redireciona quem não entrou, mas é só uma checagem rápida pelo cookie. A checagem de verdade (`requireAppUser`, que pergunta ao Supabase se o token vale e acha o usuário ativo) roda em toda página e em toda Server Action, porque Server Actions são endpoints que podem ser chamados direto. O RLS segue ligado sem policies e todas as consultas filtram por `user_id`. A mensagem de erro do login é sempre a mesma, para não revelar quais e-mails existem. Limite de 500 caracteres por mensagem. Nenhum conteúdo de mensagem vai para log.
+- **Histórico:** as últimas 100 mensagens de cada pessoa ficam em `chat_messages`, com botão "Limpar". Como o texto é guardado como foi digitado, não escreva senhas no chat.
+- **Instalável:** `app/manifest.ts` e ícones gerados por código (`/pwa-icon/[size]`). Service worker e notificações ficam para uma próxima fase.
+
 ## WhatsApp (`src/channels/whatsapp` + `app/api/webhook/whatsapp`)
 
 - **`verify-signature`**: valida o `X-Hub-Signature-256` (HMAC SHA-256 com o App Secret) sobre o corpo cru da requisição.
@@ -140,7 +159,7 @@ Como ele grava no banco de verdade e não tem login, **só funciona fora de prod
 
 **Fases 1 a 4 implementadas:** fundação, núcleo (parser/categorias/saldo/respostas), simulador, a integração com o WhatsApp (webhook, assinatura, números autorizados, idempotência, cota e modo silencioso), a IA de reserva (Groq) e as correções com aprendizado de categoria por usuário. Falta apenas o teste ponta a ponta com o WhatsApp real (Fase 3). Testes automatizados cobrem os exemplos de mensagem do escopo do projeto, os comandos, as categorias aprendidas, a IA de reserva (com `fetch` simulado), a verificação de assinatura e a lógica de cota.
 
-Próxima fase: áudio (Whisper).
+**App instalável com login e chat** (Fase B do plano do app): implementado. Próximas: áudio e foto dentro do app, depois resumos, orçamentos e notificações.
 
 ---
 

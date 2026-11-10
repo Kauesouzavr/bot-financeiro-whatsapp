@@ -1,0 +1,181 @@
+/* Chat estilo WhatsApp, pensado para celular: ocupa a tela toda e respeita a área segura do iPhone. */
+.app {
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background: #efeae2;
+  color: #111b21;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: calc(0.6rem + env(safe-area-inset-top)) 0.9rem 0.6rem;
+  background: #075e54;
+  color: #ffffff;
+}
+
+.title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.subtitle {
+  margin: 0;
+  font-size: 0.78rem;
+  opacity: 0.85;
+}
+
+.actions {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.ghost {
+  padding: 0.4rem 0.65rem;
+  border: 1px solid rgb(255 255 255 / 0.45);
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.balance {
+  margin: 0;
+  padding: 0.5rem 0.9rem;
+  background: #ffffff;
+  border-bottom: 1px solid #d1d7db;
+  font-size: 0.85rem;
+  line-height: 1.35;
+}
+
+.messages {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding: 0.75rem 0.7rem;
+}
+
+.empty {
+  margin: auto;
+  max-width: 20rem;
+  padding: 1rem;
+  border-radius: 0.8rem;
+  background: rgb(255 255 255 / 0.75);
+  text-align: center;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: #54656f;
+}
+
+.bubble {
+  max-width: 82%;
+  padding: 0.5rem 0.7rem;
+  border-radius: 0.7rem;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+  line-height: 1.35;
+  box-shadow: 0 1px 1px rgb(0 0 0 / 0.1);
+}
+
+.user {
+  align-self: flex-end;
+  background: #d9fdd3;
+}
+
+.bot {
+  align-self: flex-start;
+  background: #ffffff;
+}
+
+.typing {
+  color: #667781;
+  font-style: italic;
+}
+
+.composer {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.5rem 0.6rem calc(0.5rem + env(safe-area-inset-bottom));
+  background: #f0f2f5;
+}
+
+.field {
+  flex: 1;
+  min-width: 0;
+  padding: 0.7rem 0.9rem;
+  border: 0;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #111b21;
+  /* 16px evita o zoom automático do iPhone ao focar no campo. */
+  font-size: 1rem;
+}
+
+.field:focus-visible {
+  outline: 2px solid #00a884;
+}
+
+.send {
+  padding: 0 1.1rem;
+  border: 0;
+  border-radius: 999px;
+  background: #00a884;
+  color: #ffffff;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.send:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+@media (prefers-color-scheme: dark) {
+  .app {
+    background: #0b141a;
+    color: #e9edef;
+  }
+
+  .header {
+    background: #202c33;
+  }
+
+  .balance {
+    background: #111b21;
+    border-bottom-color: #2a3942;
+  }
+
+  .empty {
+    background: #202c33;
+    color: #aebac1;
+  }
+
+  .user {
+    background: #005c4b;
+  }
+
+  .bot {
+    background: #202c33;
+  }
+
+  .typing {
+    color: #8696a0;
+  }
+
+  .composer {
+    background: #202c33;
+  }
+
+  .field {
+    background: #2a3942;
+    color: #e9edef;
+  }
+}
