@@ -18,7 +18,7 @@ Bot de finanças pessoais no WhatsApp. A pessoa manda "gastei 45 no ifood", um �
 | Banco                 | Supabase (Postgres), projeto próprio, separado de outros projetos          |
 | WhatsApp              | WhatsApp Cloud API oficial da Meta, com o número de teste                  |
 | Áudio → texto         | Groq, modelo Whisper                                                       |
-| IA de reserva (texto) | Groq, LLM com saída JSON                                                   |
+| IA de reserva (texto) | Groq, LLM com saída JSON; Gemini como segundo provedor se o Groq falhar    |
 | Foto de comprovante   | Gemini via `@google/genai`                                                 |
 | Validação             | zod                                                                        |
 | Testes e CI           | Vitest + GitHub Actions (lint, typecheck e testes)                         |
@@ -70,7 +70,7 @@ tests/
 - Categorias padrão:
   - Saídas: Alimentação, Delivery, Mercado, Transporte, Moradia, Contas, Saúde, Lazer, Educação, Compras, Assinaturas, Outros
   - Entradas: Salário, Freela, Pix recebido, Outras entradas
-- Ordem de interpretação do texto: **parser por regras → IA de reserva (Groq, JSON validado com zod) → pedir para reformular, com um exemplo.** A IA só entra quando o parser falha.
+- Ordem de interpretação do texto: **parser por regras → IA de reserva (Groq e, se ele falhar, Gemini; JSON validado com zod) → pedir para reformular, com um exemplo.** A IA só entra quando o parser falha. No plano grátis do Gemini o Google pode treinar com o que recebe: ele só é chamado quando o Groq falha e recebe apenas o texto da mensagem.
 - Correções que o bot entende: `muda pra lazer` e `apaga o último`, sempre sobre a última transação do usuário. Quando o usuário corrige uma categoria, o bot guarda termo → categoria para esse usuário e usa nas próximas vezes.
 - **Áudio:** baixa → Whisper (idioma `pt`) → mesmo fluxo do texto. A resposta mostra o que foi entendido.
 - **Foto:** baixa → Gemini extrai `{ amount, recipient, date, kind }` (validado com zod) → o bot pede confirmação com os botões **Salvar** e **Cancelar** → só grava depois do "Salvar". A pendência expira em 24h.

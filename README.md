@@ -24,7 +24,7 @@ Projeto pessoal com dois objetivos: uso real no dia a dia e portfólio para vaga
 | Banco                 | Supabase (Postgres)                                   |
 | WhatsApp              | WhatsApp Cloud API (Meta)                             |
 | Áudio → texto         | Groq (Whisper)                                        |
-| IA de reserva (texto) | Groq (LLM, saída em JSON)                             |
+| IA de reserva (texto) | Groq (LLM, saída em JSON); Gemini se o Groq falhar    |
 | Foto de comprovante   | Gemini (`@google/genai`)                              |
 | Validação             | zod                                                   |
 | Testes e CI           | Vitest + GitHub Actions                               |
@@ -66,15 +66,15 @@ Abre [http://localhost:3000](http://localhost:3000).
 
 ### Scripts
 
-| Comando              | O que faz                         |
-| -------------------- | --------------------------------- |
-| `npm run dev`        | servidor de desenvolvimento       |
-| `npm run build`      | build de produção                 |
-| `npm run lint`       | ESLint                            |
+| Comando              | O que faz                                                       |
+| -------------------- | --------------------------------------------------------------- |
+| `npm run dev`        | servidor de desenvolvimento                                     |
+| `npm run build`      | build de produção                                               |
+| `npm run lint`       | ESLint                                                          |
 | `npm run typecheck`  | gera os tipos das rotas (`next typegen`) e checa tudo com `tsc` |
-| `npm test`           | roda os testes (Vitest)           |
-| `npm run test:watch` | testes em modo watch              |
-| `npm run format`     | formata tudo com Prettier         |
+| `npm test`           | roda os testes (Vitest)                                         |
+| `npm run test:watch` | testes em modo watch                                            |
+| `npm run format`     | formata tudo com Prettier                                       |
 
 ## Banco de dados (Supabase)
 
@@ -95,7 +95,9 @@ Todas as tabelas têm **Row Level Security (RLS)** ligado e nenhuma policy: só 
 
 Ver `.env.example` para a lista completa. Nenhum segredo vai pro Git, e o `.env.local` está no `.gitignore`.
 
-Nomes de modelos de IA mudam com frequência, por isso ficam em variável de ambiente e não no código. Para a IA de reserva, `GROQ_LLM_MODEL=openai/gpt-oss-20b` funciona no plano grátis do Groq (modelo de produção com saída JSON estrita). Sem `GROQ_API_KEY` ou `GROQ_LLM_MODEL`, a IA de reserva simplesmente fica desligada e o bot responde "não entendi".
+Nomes de modelos de IA mudam com frequência, por isso ficam em variável de ambiente e não no código. Para a IA de reserva, `GROQ_LLM_MODEL=openai/gpt-oss-20b` funciona no plano grátis do Groq (modelo de produção com saída JSON estrita). Sem `GROQ_API_KEY` ou `GROQ_LLM_MODEL`, esse provedor simplesmente é pulado.
+
+Se o Groq falhar (conta restrita, limite do plano grátis, erro de rede), o bot tenta o **Gemini** como segundo provedor, com `GEMINI_API_KEY` e `GEMINI_MODEL` (por exemplo `gemini-3.5-flash-lite`, modelo estável e barato). Sem nenhum dos dois, a IA de reserva fica desligada e o bot responde "não entendi". Um detalhe de privacidade: no plano grátis o Google pode usar o que é enviado ao Gemini para treinar modelos, por isso ele só é chamado quando o Groq falha, e só o texto da mensagem vai, sem identificação de quem mandou.
 
 ## O núcleo (`src/core`)
 
@@ -108,8 +110,8 @@ Regra de negócio pura, sem I/O, 100% testável:
 - **`date/sao-paulo`**: resolve "hoje", "ontem" e "dia N" no fuso de São Paulo, usando só `Intl` (sem biblioteca de datas).
 - **`balance`**: soma entradas/saídas de um conjunto de transações e calcula o saldo.
 - **`replies`**: formata as mensagens de resposta.
-- **`message-handler.ts`**: o fluxo completo, sem importar banco nem rede: recebe as dependências (`CoreDeps`) por injeção, então os testes usam um banco em memória. Ordem de interpretação: **comando de correção → parser por regras → IA de reserva (Groq) → pedir pra reformular**. A IA só entra quando o parser não entende; se ela falhar (sem chave, limite do plano grátis, timeout, JSON inválido), o bot cai no "não entendi" e nada é gravado.
-- **`handle-message.ts`**: liga o `message-handler` aos serviços reais (Supabase e Groq). É o mesmo código que o simulador e o WhatsApp chamam.
+- **`message-handler.ts`**: o fluxo completo, sem importar banco nem rede: recebe as dependências (`CoreDeps`) por injeção, então os testes usam um banco em memória. Ordem de interpretação: **comando de correção → parser por regras → IA de reserva (Groq, depois Gemini) → pedir pra reformular**. A IA só entra quando o parser não entende; se todos os provedores falharem (sem chave, limite do plano grátis, timeout, JSON inválido), o bot cai no "não entendi" e nada é gravado. A ordem dos provedores é uma "corrente" (`core/ai/fallback-chain.ts`) testada sem rede.
+- **`handle-message.ts`**: liga o `message-handler` aos serviços reais (Supabase, Groq e Gemini). É o mesmo código que o simulador e o WhatsApp chamam.
 - **`quota`**: decide se manda a resposta ou entra em modo silencioso, e se deve avisar que está perto do limite mensal.
 
 ## Simulador
