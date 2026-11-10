@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import {
   useEffect,
   useRef,
@@ -156,6 +157,9 @@ export function ChatApp({
           {userName && <p className={styles.subtitle}>{userName}</p>}
         </div>
         <div className={styles.actions}>
+          <Link href="/app/resumo" className={`${styles.ghost} ${styles.ghostLink}`}>
+            Resumo
+          </Link>
           <button className={styles.ghost} type="button" onClick={handleClear} disabled={isPending}>
             Limpar
           </button>

@@ -1,0 +1,264 @@
+/* Tela de resumo do mês, pensada para celular: respeita a área segura do iPhone e segue as cores do chat. */
+.page {
+  --bg: #efeae2;
+  --card: #ffffff;
+  --text: #111b21;
+  --muted: #54656f;
+  --line: #d1d7db;
+  --track: #e9edef;
+  --income: #0a7d5a;
+  --expense: #b3261e;
+  --bar-income: #00a884;
+  --bar-expense: #e2674f;
+
+  min-height: 100dvh;
+  background: var(--bg);
+  color: var(--text);
+  padding-bottom: calc(1.5rem + env(safe-area-inset-bottom));
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: calc(0.6rem + env(safe-area-inset-top)) 0.9rem 0.6rem;
+  background: #075e54;
+  color: #ffffff;
+}
+
+.back {
+  padding: 0.4rem 0.65rem;
+  border: 1px solid rgb(255 255 255 / 0.45);
+  border-radius: 999px;
+  color: inherit;
+  font-size: 0.8rem;
+  text-decoration: none;
+}
+
+.title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.monthNav,
+.content {
+  width: 100%;
+  max-width: 40rem;
+  margin: 0 auto;
+}
+
+.monthNav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.6rem 0.5rem;
+}
+
+.month {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+  text-align: center;
+}
+
+.arrow {
+  display: grid;
+  place-items: center;
+  /* 44px: tamanho mínimo confortável para o toque no iPhone. */
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 999px;
+  color: inherit;
+  font-size: 1.6rem;
+  text-decoration: none;
+}
+
+.arrowOff {
+  opacity: 0.25;
+}
+
+.content {
+  display: grid;
+  gap: 1rem;
+  padding: 0 0.8rem;
+}
+
+.totals {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+.total {
+  display: grid;
+  gap: 0.2rem;
+  padding: 0.7rem 0.6rem;
+  border-radius: 0.8rem;
+  background: var(--card);
+  box-shadow: 0 1px 1px rgb(0 0 0 / 0.08);
+}
+
+.totalLabel {
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+.totalValue {
+  font-size: 0.95rem;
+  overflow-wrap: anywhere;
+}
+
+.income {
+  color: var(--income);
+}
+
+.expense {
+  color: var(--expense);
+}
+
+.empty {
+  margin: 1rem 0;
+  padding: 1rem;
+  border-radius: 0.8rem;
+  background: var(--card);
+  color: var(--muted);
+  text-align: center;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.section {
+  padding: 0.8rem;
+  border-radius: 0.8rem;
+  background: var(--card);
+  box-shadow: 0 1px 1px rgb(0 0 0 / 0.08);
+}
+
+.sectionTitle {
+  margin: 0 0 0.7rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.categories,
+.transactions {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.categories {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.categoryRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.3rem;
+  font-size: 0.9rem;
+}
+
+.categoryName {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.categoryValue {
+  flex: none;
+  font-variant-numeric: tabular-nums;
+}
+
+.percent {
+  display: inline-block;
+  min-width: 2.6rem;
+  margin-left: 0.5rem;
+  color: var(--muted);
+  font-size: 0.8rem;
+  text-align: right;
+}
+
+.track {
+  height: 0.5rem;
+  border-radius: 999px;
+  background: var(--track);
+  overflow: hidden;
+}
+
+.bar {
+  height: 100%;
+  /* Uma categoria minúscula (0%) ainda aparece como um risquinho. */
+  min-width: 0.25rem;
+  border-radius: 999px;
+}
+
+.barExpense {
+  background: var(--bar-expense);
+}
+
+.barIncome {
+  background: var(--bar-income);
+}
+
+.day + .day {
+  margin-top: 0.9rem;
+}
+
+.dayTitle {
+  margin: 0 0 0.3rem;
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.transaction {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.55rem 0;
+  border-top: 1px solid var(--line);
+  font-size: 0.9rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.transactionText {
+  display: grid;
+  min-width: 0;
+}
+
+.transactionName {
+  overflow-wrap: anywhere;
+}
+
+.transactionCategory {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.transaction > span:last-child {
+  flex: none;
+  font-weight: 600;
+}
+
+@media (prefers-color-scheme: dark) {
+  .page {
+    --bg: #0b141a;
+    --card: #202c33;
+    --text: #e9edef;
+    --muted: #aebac1;
+    --line: #2a3942;
+    --track: #2a3942;
+    --income: #4fd6a6;
+    --expense: #ff8a7a;
+  }
+
+  .header {
+    background: #202c33;
+  }
+}
