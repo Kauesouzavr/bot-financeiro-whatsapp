@@ -8,7 +8,14 @@ import {
   receiptToPendingTransaction,
   type ReceiptExtraction,
 } from "../ai/receipt";
-import type { VoiceMimeType } from "../ai/voice";
+import {
+  VOICE_ALLOWED_MIME_TYPES,
+  VOICE_MAX_BYTES,
+  VOICE_MESSAGES,
+  VOICE_USER_TEXT,
+  formatVoiceReply,
+  type VoiceMimeType,
+} from "../ai/voice";
 import type { BalanceTransaction } from "../balance/calculate-balance";
 import { calculateBalance } from "../balance/calculate-balance";
 import type { LearnedCategories } from "../categories";
@@ -69,6 +76,8 @@ export interface ChatDeps {
   ): Promise<void>;
   // IA que lê o comprovante. Devolve null se falhar (nunca deve lançar erro).
   extractReceipt(file: ReceiptFile): Promise<ReceiptExtraction | null>;
+  // IA que transcreve a voz. Devolve o texto ("" se não havia fala) ou null se falhar (nunca deve lançar erro).
+  transcribeAudio(file: AudioFile): Promise<string | null>;
   // Cada pessoa tem no máximo uma pendência: guardar uma nova substitui a anterior.
   replacePending(
     userId: string,
@@ -105,6 +114,10 @@ function toPendingView(pending: PendingReceipt): PendingView {
 
 function isAllowedMimeType(mimeType: string): boolean {
   return (RECEIPT_ALLOWED_MIME_TYPES as readonly string[]).includes(mimeType);
+}
+
+function isAllowedAudioMimeType(mimeType: string): boolean {
+  return (VOICE_ALLOWED_MIME_TYPES as readonly string[]).includes(mimeType);
 }
 
 export function createChatService(deps: ChatDeps) {
@@ -205,6 +218,53 @@ export function createChatService(deps: ChatDeps) {
       } catch (error) {
         logError(error);
         return { ok: false, error: RECEIPT_MESSAGES.failed };
+      }
+    },
+
+    // Mensagem de voz: vira texto e segue o MESMO caminho do texto digitado (comandos, regras, IA de
+    // reserva, saldo). A resposta mostra o que foi entendido. O áudio nunca é guardado.
+    async sendVoice(userId: string, file: AudioFile): Promise<SendResult> {
+      if (
+        !isAllowedAudioMimeType(file.mimeType) ||
+        file.bytes.length === 0 ||
+        file.bytes.length > VOICE_MAX_BYTES
+      ) {
+        return { ok: false, error: VOICE_MESSAGES.invalidFile };
+      }
+
+      try {
+        const transcript = await deps.transcribeAudio(file);
+        if (transcript === null) return { ok: false, error: VOICE_MESSAGES.failed };
+
+        const text = transcript.trim();
+        if (!text) return { ok: false, error: VOICE_MESSAGES.noSpeech };
+        if (text.length > MAX_CHAT_MESSAGE_LENGTH) {
+          return { ok: false, error: VOICE_MESSAGES.tooLong };
+        }
+
+        // O núcleo só conhece texto; a origem "audio" fica registrada na transação.
+        const replies = await deps.handleMessage({
+          userId,
+          kind: "text",
+          content: text,
+          source: "audio",
+        });
+        const botText = formatVoiceReply(text, replies.map((reply) => reply.text).join("\n\n"));
+
+        await deps.appendMessages(userId, [
+          { role: "user", text: VOICE_USER_TEXT },
+          { role: "bot", text: botText },
+        ]);
+
+        return {
+          ok: true,
+          userText: VOICE_USER_TEXT,
+          botText,
+          balanceLine: await balanceLine(userId),
+        };
+      } catch (error) {
+        logError(error);
+        return { ok: false, error: "Não consegui processar agora. Tente de novo em instantes." };
       }
     },
 

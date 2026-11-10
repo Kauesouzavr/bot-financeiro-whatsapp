@@ -1,6 +1,7 @@
 import { createChatService } from "@/core/chat/chat-service";
 import { handleMessage } from "@/core/handle-message";
 import { extractReceiptWithGemini } from "@/services/gemini/extract-receipt";
+import { transcribeAudioWithGemini } from "@/services/gemini/transcribe-audio";
 import {
   appendChatMessages,
   clearChatMessages,
@@ -25,6 +26,7 @@ export const chatService = createChatService({
   getLearnedCategories,
   insertTransactions,
   extractReceipt: extractReceiptWithGemini,
+  transcribeAudio: transcribeAudioWithGemini,
   replacePending,
   getPending,
   takePending,

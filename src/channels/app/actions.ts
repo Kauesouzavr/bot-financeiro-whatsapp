@@ -2,8 +2,9 @@
 
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { sniffReceiptMimeType } from "@/core/ai/file-type";
+import { sniffAudioMimeType, sniffReceiptMimeType } from "@/core/ai/file-type";
 import { RECEIPT_MAX_BYTES, RECEIPT_MESSAGES } from "@/core/ai/receipt";
+import { VOICE_MAX_BYTES, VOICE_MESSAGES } from "@/core/ai/voice";
 import type { PendingResult, ReceiptResult, SendResult } from "@/core/chat/chat-service";
 import { requireAppUser } from "@/services/auth/current-user";
 import { createAuthClient } from "@/services/auth/server-client";
@@ -33,6 +34,24 @@ export async function sendReceiptAction(formData: FormData): Promise<ReceiptResu
   if (!mimeType) return { ok: false, error: RECEIPT_MESSAGES.invalidFile };
 
   return chatService.sendReceipt(user.id, { mimeType, bytes });
+}
+
+// Recebe a gravação de voz, transcreve e segue o mesmo fluxo do texto. O áudio nunca é guardado.
+export async function sendVoiceAction(formData: FormData): Promise<SendResult> {
+  const user = await requireAppUser();
+
+  const file = formData.get("file");
+  // Confere o tamanho antes de ler o arquivo inteiro pra memória.
+  if (!(file instanceof File) || file.size === 0 || file.size > VOICE_MAX_BYTES) {
+    return { ok: false, error: VOICE_MESSAGES.invalidFile };
+  }
+
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  // O tipo vem dos primeiros bytes do arquivo, não do que o navegador declarou.
+  const mimeType = sniffAudioMimeType(bytes);
+  if (!mimeType) return { ok: false, error: VOICE_MESSAGES.invalidFile };
+
+  return chatService.sendVoice(user.id, { mimeType, bytes });
 }
 
 const pendingIdSchema = z.uuid();

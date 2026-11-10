@@ -2,6 +2,7 @@ import { vi } from "vitest";
 import type { ReceiptExtraction } from "@/core/ai/receipt";
 import {
   createChatService,
+  type AudioFile,
   type ChatDeps,
   type ChatMessage,
   type PendingReceipt,
@@ -14,6 +15,8 @@ export interface FakeChatOptions {
   replies?: CoreReply[];
   handleError?: Error;
   extraction?: ReceiptExtraction | null;
+  // O que a IA "ouve" na gravação: um texto, "" (sem fala) ou null (a IA falhou).
+  transcript?: string | null;
   learned?: Record<string, string>;
   insertError?: Error;
 }
@@ -25,10 +28,13 @@ export function createFakeChat(options: FakeChatOptions = {}) {
   const inserted: { userId: string; transaction: ParsedTransaction; source: TransactionSource }[] =
     [];
   const extracted: ReceiptFile[] = [];
+  const transcribed: AudioFile[] = [];
   const pendings: (PendingReceipt & { userId: string })[] = [];
   const clock = { now: NOW };
   const control = {
     extraction: options.extraction ?? (null as ReceiptExtraction | null),
+    transcript:
+      options.transcript === undefined ? "gastei 30 reais no mercado" : options.transcript,
     insertError: options.insertError ?? (null as Error | null),
   };
   let nextPendingId = 1;
@@ -81,6 +87,10 @@ export function createFakeChat(options: FakeChatOptions = {}) {
       extracted.push(file);
       return control.extraction;
     },
+    transcribeAudio: async (file) => {
+      transcribed.push(file);
+      return control.transcript;
+    },
     replacePending: async (userId, transaction, expiresAt) => {
       for (let i = pendings.length - 1; i >= 0; i--)
         if (pendings[i].userId === userId) pendings.splice(i, 1);
@@ -119,6 +129,7 @@ export function createFakeChat(options: FakeChatOptions = {}) {
     handled,
     inserted,
     extracted,
+    transcribed,
     pendings,
     clock,
     control,
