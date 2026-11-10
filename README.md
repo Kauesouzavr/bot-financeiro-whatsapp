@@ -23,7 +23,7 @@ Projeto pessoal com dois objetivos: uso real no dia a dia e portfólio para vaga
 | App + API             | Next.js (App Router) + TypeScript `strict`, na Vercel |
 | Banco                 | Supabase (Postgres)                                   |
 | WhatsApp              | WhatsApp Cloud API (Meta)                             |
-| Áudio → texto         | Groq (Whisper)                                        |
+| Voz → texto           | Gemini (mensagem de voz no app)                       |
 | IA de reserva (texto) | Groq (LLM, saída em JSON); Gemini se o Groq falhar    |
 | Foto de comprovante   | Gemini (`@google/genai`)                              |
 | Validação             | zod                                                   |
@@ -139,6 +139,7 @@ Como ele grava no banco de verdade e não tem login, **só funciona fora de prod
 - **Histórico:** as últimas 100 mensagens de cada pessoa ficam em `chat_messages`, com botão "Limpar". Como o texto é guardado como foi digitado, não escreva senhas no chat.
 - **Instalável:** `app/manifest.ts` e ícones gerados por código (`/pwa-icon/[size]`). Service worker e notificações ficam para uma próxima fase.
 - **Comprovante (foto ou PDF):** o botão 📎 envia um comprovante de Pix ou pagamento. No celular a foto é reduzida (até 1600 px) antes de enviar. O servidor confere o login, o tamanho (até 3 MB) e o **tipo real do arquivo pelos primeiros bytes**, e o Gemini lê valor, quem recebeu ou enviou, data e se foi entrada ou saída. Tudo é validado com zod: o valor vira centavos pelo conversor do núcleo (sem float), e data impossível, no futuro ou com mais de 13 meses é recusada. O resultado vira um **cartão com Salvar e Cancelar**: **só grava depois do Salvar**. A pendência fica na tabela `pending_actions`, vale 24 horas e é única por pessoa; ela é apagada e devolvida numa operação só do banco, então toque duplo não grava duas vezes, e se salvar falhar o comprovante volta pra tentar de novo. A imagem **nunca é armazenada**: é lida e descartada. Privacidade: no plano grátis o Google pode treinar com o que o Gemini recebe, então o arquivo vai sem identificar quem enviou, e o prompt manda ignorar CPF/CNPJ e números de conta.
+- **Mensagem de voz:** o botão 🎤 grava até 1 minuto (toque para começar e toque em Enviar). O app grava no formato do próprio aparelho (MP4 no iPhone, WebM ou OGG no Android e no computador, sem conversão) e o servidor confere o login, o tamanho (até 1,5 MB) e o **tipo real do arquivo pelos primeiros bytes**. O Gemini transcreve em português e o texto segue o **mesmo caminho do texto digitado** (comandos, regras, IA de reserva, saldo). A resposta mostra o que foi entendido (`🎙️ Entendi: "gastei 30 reais no mercado"`) e a transação fica com `source = audio`. Se a IA falhar ou não ouvir nada, nada é gravado. O áudio **nunca é armazenado**: fica na memória do celular, vai na requisição e é descartado; o histórico guarda só o texto. O microfone é liberado só para o próprio site (`Permissions-Policy: microphone=(self)`) e a câmera continua desligada. Privacidade: igual ao comprovante, o Google pode treinar com o que o Gemini recebe no plano grátis, então o áudio vai sem identificar quem enviou.
 
 ## WhatsApp (`src/channels/whatsapp` + `app/api/webhook/whatsapp`)
 
@@ -160,7 +161,7 @@ Como ele grava no banco de verdade e não tem login, **só funciona fora de prod
 
 **Fases 1 a 4 implementadas:** fundação, núcleo (parser/categorias/saldo/respostas), simulador, a integração com o WhatsApp (webhook, assinatura, números autorizados, idempotência, cota e modo silencioso), a IA de reserva (Groq) e as correções com aprendizado de categoria por usuário. Falta apenas o teste ponta a ponta com o WhatsApp real (Fase 3). Testes automatizados cobrem os exemplos de mensagem do escopo do projeto, os comandos, as categorias aprendidas, a IA de reserva (com `fetch` simulado), a verificação de assinatura e a lógica de cota.
 
-**App instalável com login e chat** (Fase B do plano do app) e **comprovante por foto ou PDF** (Fase C1): implementados. Próximas: mensagem de voz (Fase C2), compartilhar do banco/WhatsApp para o app (Android), depois resumos, orçamentos e notificações.
+**App instalável com login e chat** (Fase B do plano do app), **comprovante por foto ou PDF** (Fase C1) e **mensagem de voz** (Fase C2): implementados. Próximas: compartilhar do banco/WhatsApp para o app (Android), depois resumos, orçamentos e notificações.
 
 ---
 
