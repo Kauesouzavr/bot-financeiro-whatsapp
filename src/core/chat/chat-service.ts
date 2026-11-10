@@ -8,6 +8,7 @@ import {
   receiptToPendingTransaction,
   type ReceiptExtraction,
 } from "../ai/receipt";
+import type { VoiceMimeType } from "../ai/voice";
 import type { BalanceTransaction } from "../balance/calculate-balance";
 import { calculateBalance } from "../balance/calculate-balance";
 import type { LearnedCategories } from "../categories";
@@ -32,6 +33,12 @@ export interface NewChatMessage {
 // Arquivo de comprovante que chegou ao servidor. Nunca é gravado em lugar nenhum: é lido e descartado.
 export interface ReceiptFile {
   mimeType: string;
+  bytes: Uint8Array;
+}
+
+// Gravação de voz que chegou ao servidor. Também nunca é gravada: é transcrita e descartada.
+export interface AudioFile {
+  mimeType: VoiceMimeType;
   bytes: Uint8Array;
 }
 
