@@ -1,6 +1,12 @@
 import type { BalanceTransaction } from "@/core/balance/calculate-balance";
+import { monthRange } from "@/core/date/month";
+import type { StatementTransaction } from "@/core/summary/summarize-month";
 import type { ParsedTransaction, StoredTransaction, TransactionSource } from "@/core/types";
 import { supabaseAdmin } from "./admin";
+
+// O Supabase devolve no máximo 1.000 linhas por consulta. Para uma pessoa, passa de longe do que ela
+// registra num mês, mas o limite fica explícito aqui para o resumo e o extrato nunca discordarem.
+const MONTH_STATEMENT_LIMIT = 1000;
 
 export async function insertTransactions(
   userId: string,
@@ -74,10 +80,7 @@ export async function getMonthTransactions(
   year: number,
   month: number,
 ): Promise<BalanceTransaction[]> {
-  const pad = (n: number) => String(n).padStart(2, "0");
-  const start = `${year}-${pad(month)}-01`;
-  const next = month === 12 ? { year: year + 1, month: 1 } : { year, month: month + 1 };
-  const end = `${next.year}-${pad(next.month)}-01`;
+  const { start, end } = monthRange({ year, month });
 
   const { data, error } = await supabaseAdmin
     .from("transactions")
@@ -91,5 +94,36 @@ export async function getMonthTransactions(
   return (data ?? []).map((row) => ({
     type: row.type as BalanceTransaction["type"],
     amountCents: row.amount_cents,
+  }));
+}
+
+// Todas as transações do mês para o resumo e o extrato: a mais recente primeiro (data e, no mesmo dia,
+// ordem de inserção). Só leitura, sempre filtrada por user_id (a chave secreta ignora RLS).
+export async function getMonthStatement(
+  userId: string,
+  year: number,
+  month: number,
+): Promise<StatementTransaction[]> {
+  const { start, end } = monthRange({ year, month });
+
+  const { data, error } = await supabaseAdmin
+    .from("transactions")
+    .select("id, type, amount_cents, description, category, occurred_on")
+    .eq("user_id", userId)
+    .gte("occurred_on", start)
+    .lt("occurred_on", end)
+    .order("occurred_on", { ascending: false })
+    .order("seq", { ascending: false })
+    .limit(MONTH_STATEMENT_LIMIT);
+
+  if (error) throw error;
+
+  return (data ?? []).map((row) => ({
+    id: row.id,
+    type: row.type as StatementTransaction["type"],
+    amountCents: row.amount_cents,
+    description: row.description,
+    category: row.category,
+    occurredOn: row.occurred_on,
   }));
 }
