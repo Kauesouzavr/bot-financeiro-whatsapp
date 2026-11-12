@@ -7,6 +7,8 @@ import {
   previousMonth,
   type MonthRef,
 } from "@/core/date/month";
+import type { BudgetState, BudgetStatus } from "@/core/budgets/budget-status";
+import { formatBudgetNote } from "@/core/budgets/format-budget";
 import { formatCurrency } from "@/core/replies/format-reply";
 import { formatDayLabel, formatMonthTitle, formatPercent } from "@/core/summary/format-summary";
 import type { CategoryTotal, MonthSummary } from "@/core/summary/summarize-month";
@@ -17,7 +19,21 @@ interface SummaryViewProps {
   current: MonthRef;
   now: Date;
   summary: MonthSummary;
+  // Orçamentos já comparados com os gastos do mês mostrado. Vazio = o bloco nem aparece.
+  budgets?: BudgetStatus[];
 }
+
+const BUDGET_BAR: Record<BudgetState, string> = {
+  ok: styles.barOk,
+  warning: styles.barWarning,
+  exceeded: styles.barExceeded,
+};
+
+const BUDGET_NOTE: Record<BudgetState, string> = {
+  ok: styles.budgetNote,
+  warning: `${styles.budgetNote} ${styles.noteWarning}`,
+  exceeded: `${styles.budgetNote} ${styles.noteExceeded}`,
+};
 
 function monthHref(month: MonthRef): string {
   return `/app/resumo?mes=${formatMonthParam(month)}`;
@@ -60,8 +76,39 @@ function CategoryList({ title, items, tone }: CategoryListProps) {
   );
 }
 
+// Orçamento de cada categoria contra o gasto do mês. A barra enche até 100% e para: o quanto passou
+// do limite fica escrito na legenda (a barra, como as outras, é só enfeite para leitor de tela).
+function BudgetList({ items }: { items: BudgetStatus[] }) {
+  if (items.length === 0) return null;
+
+  return (
+    <section className={styles.section}>
+      <h2 className={styles.sectionTitle}>Orçamentos</h2>
+      <ul className={styles.categories}>
+        {items.map((item) => (
+          <li key={item.category} className={styles.category}>
+            <div className={styles.categoryRow}>
+              <span className={styles.categoryName}>{item.category}</span>
+              <span className={styles.categoryValue}>
+                {formatCurrency(item.spentCents)} de {formatCurrency(item.limitCents)}
+              </span>
+            </div>
+            <div className={styles.track} aria-hidden="true">
+              <div
+                className={`${styles.bar} ${BUDGET_BAR[item.state]}`}
+                style={{ width: `${Math.min(item.percent, 100)}%` }}
+              />
+            </div>
+            <p className={BUDGET_NOTE[item.state]}>{formatBudgetNote(item)}</p>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
 // Tela de resumo do mês: só leitura. Corrigir ou apagar um lançamento continua sendo pelo chat.
-export function SummaryView({ month, current, now, summary }: SummaryViewProps) {
+export function SummaryView({ month, current, now, summary, budgets = [] }: SummaryViewProps) {
   const { balance } = summary;
   const isEmpty = summary.days.length === 0;
 
@@ -132,6 +179,7 @@ export function SummaryView({ month, current, now, summary }: SummaryViewProps) 
           </p>
         ) : (
           <>
+            <BudgetList items={budgets} />
             <CategoryList
               title="Para onde foi o dinheiro"
               items={summary.expensesByCategory}
