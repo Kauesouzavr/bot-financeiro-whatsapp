@@ -8,8 +8,9 @@ import {
   receiptToPendingTransaction,
   type ReceiptExtraction,
 } from "../ai/receipt";
-import type { BalanceTransaction } from "../balance/calculate-balance";
 import { calculateBalance } from "../balance/calculate-balance";
+import { getBudgetAlertLines } from "../budgets/budget-alerts";
+import type { Budget, CategorizedTransaction } from "../budgets/budget-status";
 import type { LearnedCategories } from "../categories";
 import { getSaoPauloParts } from "../date/sao-paulo";
 import { formatBalance, formatConfirmation } from "../replies/format-reply";
@@ -53,7 +54,12 @@ export interface ChatDeps {
   listMessages(userId: string, limit: number): Promise<ChatMessage[]>;
   appendMessages(userId: string, messages: NewChatMessage[]): Promise<void>;
   clearMessages(userId: string): Promise<void>;
-  getMonthTransactions(userId: string, year: number, month: number): Promise<BalanceTransaction[]>;
+  getMonthTransactions(
+    userId: string,
+    year: number,
+    month: number,
+  ): Promise<CategorizedTransaction[]>;
+  getBudgets(userId: string): Promise<Budget[]>;
   getLearnedCategories(userId: string): Promise<LearnedCategories>;
   insertTransactions(
     userId: string,
@@ -216,8 +222,17 @@ export function createChatService(deps: ChatDeps) {
           throw error;
         }
 
-        const line = await balanceLine(userId);
-        const botText = [formatConfirmation(pending.transaction), line].join("\n");
+        // Mesma regra do chat de texto: o saldo e o aviso de orçamento saem de uma consulta só.
+        const today = getSaoPauloParts(now);
+        const monthTransactions = await deps.getMonthTransactions(userId, today.year, today.month);
+        const budgetAlerts = await getBudgetAlertLines({
+          loadBudgets: () => deps.getBudgets(userId),
+          monthTransactions,
+          saved: [pending.transaction],
+          month: today,
+        });
+        const line = formatBalance(calculateBalance(monthTransactions), today);
+        const botText = [formatConfirmation(pending.transaction), ...budgetAlerts, line].join("\n");
         await deps.appendMessages(userId, [{ role: "bot", text: botText }]);
 
         return { ok: true, botText, balanceLine: line };

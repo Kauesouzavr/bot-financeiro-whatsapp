@@ -1,5 +1,6 @@
 import { vi } from "vitest";
 import type { ReceiptExtraction } from "@/core/ai/receipt";
+import type { Budget } from "@/core/budgets/budget-status";
 import {
   createChatService,
   type ChatDeps,
@@ -16,6 +17,8 @@ export interface FakeChatOptions {
   extraction?: ReceiptExtraction | null;
   learned?: Record<string, string>;
   insertError?: Error;
+  budgets?: Budget[];
+  budgetsError?: Error;
 }
 
 // Tudo em memória, no mesmo espírito do banco real, mas sem rede e sem dado de verdade.
@@ -63,15 +66,20 @@ export function createFakeChat(options: FakeChatOptions = {}) {
     },
     // Saldo-base fixo (entrou R$ 1.500,00 e saiu R$ 45,00) mais o que foi salvo durante o teste.
     getMonthTransactions: async (userId) => [
-      { type: "income", amountCents: 150000 },
-      { type: "expense", amountCents: 4500 },
+      { type: "income", amountCents: 150000, category: "Salário" },
+      { type: "expense", amountCents: 4500, category: "Delivery" },
       ...inserted
         .filter((item) => item.userId === userId)
         .map((item) => ({
           type: item.transaction.type,
           amountCents: item.transaction.amountCents,
+          category: item.transaction.category,
         })),
     ],
+    getBudgets: async () => {
+      if (options.budgetsError) throw options.budgetsError;
+      return options.budgets ?? [];
+    },
     getLearnedCategories: async () => options.learned ?? {},
     insertTransactions: async (userId, transactions, source) => {
       if (control.insertError) throw control.insertError;

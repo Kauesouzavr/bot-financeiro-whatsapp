@@ -6,6 +6,7 @@ import {
   clearChatMessages,
   listChatMessages,
 } from "@/services/supabase/chat-messages";
+import { getBudgets } from "@/services/supabase/budgets";
 import { getLearnedCategories } from "@/services/supabase/learned-categories";
 import {
   clearPending,
@@ -22,6 +23,7 @@ export const chatService = createChatService({
   appendMessages: appendChatMessages,
   clearMessages: clearChatMessages,
   getMonthTransactions,
+  getBudgets,
   getLearnedCategories,
   insertTransactions,
   extractReceipt: extractReceiptWithGemini,
