@@ -1,4 +1,4 @@
-import type { BalanceTransaction } from "@/core/balance/calculate-balance";
+import type { CategorizedTransaction } from "@/core/budgets/budget-status";
 import { monthRange } from "@/core/date/month";
 import type { StatementTransaction } from "@/core/summary/summarize-month";
 import type { ParsedTransaction, StoredTransaction, TransactionSource } from "@/core/types";
@@ -79,12 +79,12 @@ export async function getMonthTransactions(
   userId: string,
   year: number,
   month: number,
-): Promise<BalanceTransaction[]> {
+): Promise<CategorizedTransaction[]> {
   const { start, end } = monthRange({ year, month });
 
   const { data, error } = await supabaseAdmin
     .from("transactions")
-    .select("type, amount_cents")
+    .select("type, amount_cents, category")
     .eq("user_id", userId)
     .gte("occurred_on", start)
     .lt("occurred_on", end);
@@ -92,8 +92,9 @@ export async function getMonthTransactions(
   if (error) throw error;
 
   return (data ?? []).map((row) => ({
-    type: row.type as BalanceTransaction["type"],
+    type: row.type as CategorizedTransaction["type"],
     amountCents: row.amount_cents,
+    category: row.category,
   }));
 }
 

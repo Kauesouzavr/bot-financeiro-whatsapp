@@ -135,13 +135,22 @@ describe("getMonthStatement", () => {
 
 describe("getMonthTransactions", () => {
   it("continua filtrando por usuário e pelo intervalo do mês", async () => {
-    fake.result = { data: [{ type: "expense", amount_cents: 500 }], error: null };
+    fake.result = {
+      data: [{ type: "expense", amount_cents: 500, category: "Delivery" }],
+      error: null,
+    };
 
     const result = await getMonthTransactions("user-b", 2026, 1);
 
     expect(callsOf("eq")).toEqual([["user_id", "user-b"]]);
     expect(callsOf("gte")).toEqual([["occurred_on", "2026-01-01"]]);
     expect(callsOf("lt")).toEqual([["occurred_on", "2026-02-01"]]);
-    expect(result).toEqual([{ type: "expense", amountCents: 500 }]);
+    expect(result).toEqual([{ type: "expense", amountCents: 500, category: "Delivery" }]);
+  });
+
+  it("pede também a categoria, que os orçamentos precisam para somar o gasto", async () => {
+    await getMonthTransactions("user-b", 2026, 1);
+
+    expect(callsOf("select")).toEqual([["type, amount_cents, category"]]);
   });
 });

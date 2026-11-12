@@ -1,5 +1,6 @@
 import { extractTransactionsWithGemini } from "@/services/gemini/extract-transactions";
 import { extractTransactionsWithGroq } from "@/services/groq/extract-transactions";
+import { getBudgets, removeBudget, setBudget } from "@/services/supabase/budgets";
 import { getLearnedCategories, saveLearnedCategory } from "@/services/supabase/learned-categories";
 import {
   deleteTransaction,
@@ -22,6 +23,9 @@ export const handleMessage = createMessageHandler({
   deleteTransaction,
   getLearnedCategories,
   saveLearnedCategory,
+  getBudgets,
+  setBudget,
+  removeBudget,
   extractWithAi: chainExtractors([extractTransactionsWithGroq, extractTransactionsWithGemini]),
   now: () => new Date(),
 });

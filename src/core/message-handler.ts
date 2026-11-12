@@ -1,8 +1,22 @@
 import { extractionToTransactions, type AiExtraction } from "./ai/extraction";
-import type { BalanceTransaction } from "./balance/calculate-balance";
 import { calculateBalance } from "./balance/calculate-balance";
+import { getBudgetAlertLines } from "./budgets/budget-alerts";
+import {
+  MAX_BUDGET_CENTS,
+  calculateBudgetStatuses,
+  type Budget,
+  type CategorizedTransaction,
+} from "./budgets/budget-status";
+import {
+  formatBudgetAmountTooHigh,
+  formatBudgetList,
+  formatBudgetNotFound,
+  formatBudgetRemoved,
+  formatBudgetSet,
+  formatInvalidBudgetAmount,
+} from "./budgets/format-budget";
 import { findCategory, type LearnedCategories } from "./categories";
-import { parseCommand, type Command } from "./commands/parse-command";
+import { parseCommand, type BudgetCommand, type Command } from "./commands/parse-command";
 import { getSaoPauloParts } from "./date/sao-paulo";
 import { parseMessage } from "./parser/parse-message";
 import {
@@ -30,12 +44,20 @@ export interface CoreDeps {
     transactions: ParsedTransaction[],
     source: TransactionSource,
   ): Promise<void>;
-  getMonthTransactions(userId: string, year: number, month: number): Promise<BalanceTransaction[]>;
+  getMonthTransactions(
+    userId: string,
+    year: number,
+    month: number,
+  ): Promise<CategorizedTransaction[]>;
   getLastTransaction(userId: string): Promise<StoredTransaction | null>;
   updateTransactionCategory(userId: string, transactionId: string, category: string): Promise<void>;
   deleteTransaction(userId: string, transactionId: string): Promise<void>;
   getLearnedCategories(userId: string): Promise<LearnedCategories>;
   saveLearnedCategory(userId: string, term: string, category: string): Promise<void>;
+  getBudgets(userId: string): Promise<Budget[]>;
+  // Define ou troca o limite da categoria (um por usuário e categoria).
+  setBudget(userId: string, category: string, limitCents: number): Promise<void>;
+  removeBudget(userId: string, category: string): Promise<void>;
   // IA de reserva: devolve null se estiver indisponível ou falhar (nunca deve lançar erro).
   extractWithAi(message: string): Promise<AiExtraction | null>;
   now(): Date;
@@ -52,8 +74,59 @@ export function createMessageHandler(deps: CoreDeps) {
     return formatBalance(calculateBalance(monthTransactions), today);
   }
 
+  // Orçamentos não dependem da última transação: cada comando age só nos limites do próprio usuário.
+  async function handleBudgetCommand(
+    command: BudgetCommand,
+    userId: string,
+    now: Date,
+  ): Promise<CoreReply[]> {
+    const today = getSaoPauloParts(now);
+
+    if (command.kind === "list_budgets") {
+      const [budgets, monthTransactions] = await Promise.all([
+        deps.getBudgets(userId),
+        deps.getMonthTransactions(userId, today.year, today.month),
+      ]);
+      return textReply(
+        formatBudgetList(calculateBudgetStatuses(budgets, monthTransactions), today),
+      );
+    }
+
+    // Só gasto tem orçamento: uma categoria de entrada ("salário") cai no mesmo aviso de categoria desconhecida.
+    const category = findCategory(command.categoryText, "expense");
+    if (!category) return textReply(formatUnknownCategory(command.categoryText, "expense"));
+
+    if (command.kind === "remove_budget") {
+      const budgets = await deps.getBudgets(userId);
+      if (!budgets.some((budget) => budget.category === category)) {
+        return textReply(formatBudgetNotFound(category));
+      }
+      await deps.removeBudget(userId, category);
+      return textReply(formatBudgetRemoved(category));
+    }
+
+    if (command.amountCents <= 0) return textReply(formatInvalidBudgetAmount());
+    if (command.amountCents > MAX_BUDGET_CENTS) return textReply(formatBudgetAmountTooHigh());
+
+    await deps.setBudget(userId, category, command.amountCents);
+    const monthTransactions = await deps.getMonthTransactions(userId, today.year, today.month);
+    const [status] = calculateBudgetStatuses(
+      [{ category, limitCents: command.amountCents }],
+      monthTransactions,
+    );
+    return textReply(formatBudgetSet(status));
+  }
+
   // Corrige ou apaga sempre a última transação do usuário.
   async function handleCommand(command: Command, userId: string, now: Date): Promise<CoreReply[]> {
+    if (
+      command.kind === "set_budget" ||
+      command.kind === "remove_budget" ||
+      command.kind === "list_budgets"
+    ) {
+      return handleBudgetCommand(command, userId, now);
+    }
+
     const last = await deps.getLastTransaction(userId);
     if (!last) return textReply(formatNoTransactions());
 
@@ -98,8 +171,22 @@ export function createMessageHandler(deps: CoreDeps) {
 
     await deps.insertTransactions(input.userId, parsed, input.source);
 
-    const balanceLine = await monthBalanceLine(input.userId, now);
-    const lines = [...parsed.map(formatConfirmation), balanceLine];
+    // Uma consulta só alimenta o saldo e os avisos de orçamento. Tudo vai na MESMA resposta
+    // (a cota grátis da Meta conta respostas, não linhas).
+    const today = getSaoPauloParts(now);
+    const monthTransactions = await deps.getMonthTransactions(
+      input.userId,
+      today.year,
+      today.month,
+    );
+    const budgetAlerts = await getBudgetAlertLines({
+      loadBudgets: () => deps.getBudgets(input.userId),
+      monthTransactions,
+      saved: parsed,
+      month: today,
+    });
+    const balanceLine = formatBalance(calculateBalance(monthTransactions), today);
+    const lines = [...parsed.map(formatConfirmation), ...budgetAlerts, balanceLine];
 
     return textReply(lines.join("\n"));
   };
